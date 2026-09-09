@@ -1,0 +1,16 @@
+# 密钥与本地数据（绝不提交）
+ai-config.json
+.env
+.wb-data/
+
+# 系统/临时
+.DS_Store
+Thumbs.db
+node_modules/
+*.log
+
+# Codex/开发杂项（如需可保留在本地，不进仓库）
+.workbuddy/
+CONTINUE.md
+tmpjs/
+*.py

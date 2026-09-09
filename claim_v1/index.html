@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>扭蛋抽卡 · 我的英雄伙伴</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <button id="btn-mute" title="声音开关">🔊</button>
+  <button id="btn-home" title="返回工坊">← 回工坊</button>
+
+  <div id="app">
+
+    <!-- ============= 视图 1：身份 ============= -->
+    <section class="view view-name" data-view="name-input" hidden>
+      <div class="name-wrap">
+        <div class="name-deco">🎰 ✨ 🥚</div>
+        <h1 class="gacha-title">英雄扭蛋机</h1>
+        <p class="gacha-sub">摇出你的专属英雄，给 TA 起个名字</p>
+        <div class="big-input-wrap">
+          <input class="big-input" type="text" id="input-owner" maxlength="6" placeholder="我是..." autocomplete="off">
+        </div>
+        <button class="btn btn-primary btn-xl" id="btn-go-filter" disabled>出发 →</button>
+        <p class="hint-line">这个代号会印在你的英雄档案卡上</p>
+        <button class="btn btn-link" id="btn-show-restore">我有存档码 →</button>
+        <div class="restore-panel" id="restore-panel" hidden>
+          <textarea id="input-savecode" rows="3" placeholder="把存档码粘贴到这里"></textarea>
+          <button class="btn btn-secondary" id="btn-do-restore">恢复我的档案</button>
+          <p class="restore-fb" id="restore-fb"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= 视图 2：筛选偏好 ============= -->
+    <section class="view view-filter" data-view="filter" hidden>
+      <header class="topbar">
+        <span class="topbar-step">第 1 步</span>
+        <h2 class="topbar-title">许下你的心愿</h2>
+        <span class="topbar-points" id="filter-points">⭐ 0</span>
+      </header>
+
+      <div class="filter-block">
+        <div class="filter-label">想要小哥哥还是小姐姐？</div>
+        <div class="chip-row" id="row-gender">
+          <button class="chip chip-active" data-gender="all">都可以</button>
+          <button class="chip chip-boy" data-gender="男">男生</button>
+          <button class="chip chip-girl" data-gender="女">女生</button>
+          <button class="chip chip-na" data-gender="不分">机器人</button>
+        </div>
+      </div>
+
+      <div class="filter-block">
+        <div class="filter-label">希望 TA 是什么样的？<span class="filter-tip">（多选，心愿越准越容易遇见对味的 TA）</span></div>
+        <div class="chip-row" id="row-tags">
+          <button class="chip chip-tag" data-tag="勇敢">勇敢</button>
+          <button class="chip chip-tag" data-tag="可爱">可爱</button>
+          <button class="chip chip-tag" data-tag="阳光">阳光</button>
+          <button class="chip chip-tag" data-tag="冷静">冷静</button>
+          <button class="chip chip-tag" data-tag="神秘">神秘</button>
+          <button class="chip chip-tag" data-tag="调皮">调皮</button>
+          <button class="chip chip-tag" data-tag="强壮">强壮</button>
+          <button class="chip chip-tag" data-tag="文静">文静</button>
+        </div>
+      </div>
+
+      <div class="filter-summary" id="pool-summary">英雄池 <strong>30</strong> 位英雄</div>
+
+      <button class="btn btn-primary btn-xl" id="btn-go-gacha">去摇扭蛋 →</button>
+      <button class="btn btn-link" id="btn-back-name">← 换个代号</button>
+    </section>
+
+    <!-- ============= 视图 3：扭蛋机 ============= -->
+    <section class="view view-gacha" data-view="gacha" hidden>
+      <header class="topbar">
+        <span class="topbar-step">第 2 步</span>
+        <h2 class="topbar-title">摇一摇，遇见 TA</h2>
+        <span class="topbar-points" id="gacha-points">⭐ 0</span>
+      </header>
+
+      <div class="gacha-stage" id="gacha-stage">
+        <div class="gacha-machine">
+          <div class="gm-dome" id="gm-dome">
+            <div class="gm-capsules" id="gm-capsules"></div>
+          </div>
+          <div class="gm-neck"></div>
+          <div class="gm-body">
+            <div class="gm-window">
+              <div class="gm-capsule" id="gm-capsule" hidden></div>
+            </div>
+            <button class="gm-crank" id="btn-knob" aria-label="摇杆">
+              <span class="gm-crank-arm"></span>
+              <span class="gm-crank-dot"></span>
+            </button>
+          </div>
+          <div class="gm-base"></div>
+        </div>
+
+        <div class="gacha-result-area" id="gacha-result-area"></div>
+      </div>
+
+      <div class="gacha-hint" id="gacha-hint">转动摇杆，释放你的英雄</div>
+      <div class="gacha-cost" id="gacha-cost"></div>
+
+      <button class="btn btn-primary btn-xl" id="btn-go-rename" disabled style="margin-top:18px">带 TA 回家 →</button>
+      <button class="btn btn-secondary btn-m" id="btn-double" hidden>🎰 双蛋连抽（剩 <span id="double-count">0</span> 次）</button>
+    </section>
+
+    <!-- ============= 视图 4：起名 ============= -->
+    <section class="view view-rename" data-view="rename" hidden>
+      <header class="topbar">
+        <span class="topbar-step">第 3 步</span>
+        <h2 class="topbar-title">给 TA 起个名字</h2>
+        <span class="topbar-points" id="rename-points">⭐ 0</span>
+      </header>
+
+      <div class="rename-stage" id="rename-stage"></div>
+
+      <div class="name-tools">
+        <button class="btn btn-secondary" id="btn-dice">🎲 随机一个</button>
+        <div class="alt-chips" id="alt-chips"></div>
+      </div>
+
+      <div class="big-input-wrap">
+        <input class="big-input" type="text" id="input-character-name" maxlength="6" placeholder="TA 的新名字..." autocomplete="off">
+      </div>
+      <div class="big-input-wrap">
+        <input class="mid-input" type="text" id="input-message" maxlength="30" placeholder="送 TA 一句话（可选），会印在档案卡上" autocomplete="off">
+      </div>
+
+      <button class="btn btn-primary btn-xl" id="btn-go-archive" disabled>生成专属档案 →</button>
+      <button class="btn btn-link" id="btn-back-filter">← 改心愿</button>
+    </section>
+
+    <!-- ============= 视图 5：档案 + 积分 ============= -->
+    <section class="view view-archive" data-view="archive" hidden>
+      <header class="topbar">
+        <span class="topbar-step">达成</span>
+        <h2 class="topbar-title" id="archive-greeting">我的英雄档案</h2>
+        <span class="topbar-points" id="archive-points">⭐ 0</span>
+      </header>
+
+      <div class="archive-card-wrap">
+        <canvas id="canvas-archive" width="750" height="1000"></canvas>
+      </div>
+
+      <!-- 称号（1000 分解锁） -->
+      <div class="title-block" id="title-block" hidden>
+        <div class="title-block-label">★ 称号已解锁，选一个：</div>
+        <div class="chip-row" id="row-titles"></div>
+      </div>
+
+      <!-- 积分系统 -->
+      <div class="points-block">
+        <div class="points-bar-wrap">
+          <div class="points-track">
+            <div class="points-fill" id="points-fill"></div>
+            <div class="points-ticks">
+              <span class="tick" data-p="100">100<br><small>🎟️换蛋券</small></span>
+              <span class="tick" data-p="500">500<br><small>👑皇冠</small></span>
+              <span class="tick" data-p="1000">1000<br><small>★称号</small></span>
+              <span class="tick" data-p="2000">2000<br><small>🎰双蛋</small></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="code-redeem">
+          <div class="code-redeem-label">完成课堂任务后，找老师要口令：</div>
+          <div class="code-redeem-row">
+            <input type="text" id="input-code" maxlength="12" placeholder="输入口令" autocomplete="off">
+            <button class="btn btn-primary" id="btn-redeem">兑换</button>
+          </div>
+          <p class="code-fb" id="code-fb"></p>
+        </div>
+
+        <div class="points-badges" id="points-badges"></div>
+      </div>
+
+      <div class="archive-actions">
+        <button class="btn btn-primary btn-xl" id="btn-download-card">📸 下载档案卡</button>
+        <button class="btn btn-secondary btn-m" id="btn-export-pack">📦 导出英雄包</button>
+        <button class="btn btn-secondary btn-m" id="btn-again">再抽一次</button>
+        <button class="btn btn-secondary btn-m" id="btn-savecode">🔑 我的存档码</button>
+        <button class="btn btn-link" id="btn-reset">→ 下一位小朋友</button>
+      </div>
+
+      <div class="savecode-panel" id="savecode-panel" hidden>
+        <p class="savecode-tip">把这段码复制保存好（可以发到微信收藏），换电脑也能找回你的英雄：</p>
+        <textarea id="output-savecode" rows="3" readonly></textarea>
+        <button class="btn btn-secondary" id="btn-copy-code">复制存档码</button>
+      </div>
+
+      <div class="owned-list">
+        <h3>我的英雄小队 <span id="owned-count">0</span></h3>
+        <div class="owned-grid" id="owned-grid"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- 里程碑庆祝弹层 -->
+  <div class="milestone-overlay" id="milestone-overlay" hidden>
+    <div class="milestone-card">
+      <div class="milestone-icon" id="milestone-icon">🎉</div>
+      <div class="milestone-title">解锁新奖励！</div>
+      <div class="milestone-label" id="milestone-label"></div>
+      <button class="btn btn-primary" id="btn-milestone-ok">太棒了！</button>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+/* game_v1 - 星星大冒险 儿童糖果风 */
+:root {
+  --text: #3a3050;
+  --text-muted: #7a7290;
+  --primary: #7c5cff;
+  --primary-dark: #5537d6;
+  --primary-light: #efeaff;
+  --cta: #ff8a3d;
+  --cta-dark: #d15400;
+  --gold: #ffb400;
+  --bg: linear-gradient(160deg, #e8f4ff 0%, #f3eaff 55%, #ffeef7 100%);
+  --card: rgba(255,255,255,0.92);
+  --shadow-card: 0 8px 24px rgba(90,60,180,0.12);
+  --r-md: 16px;
+  --r-sm: 10px;
+}
+[hidden] { display: none !important; }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 16px;
+}
+.page { max-width: 860px; margin: 0 auto; padding: 16px; }
+
+/* 顶栏 */
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 16px; }
+.logo { font-size: 22px; font-weight: 700; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.points-pill {
+  background: #fff3d6; border: 2px solid var(--gold); color: #8a5d00;
+  border-radius: 999px; padding: 6px 16px; font-weight: 700; font-size: 16px;
+}
+.btn-link { color: var(--text-muted); text-decoration: none; font-size: 14px; }
+.btn-link:hover { color: var(--primary); }
+
+/* 按钮 */
+.btn {
+  cursor: pointer; border: none; font-family: inherit;
+  border-radius: var(--r-md); font-weight: 600;
+  transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; font-size: 16px; text-decoration: none;
+}
+.btn-primary {
+  background: linear-gradient(180deg, #ffa04d, var(--cta));
+  color: #fff; padding: 12px 26px;
+  box-shadow: 0 5px 0 var(--cta-dark);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.btn-primary:hover { transform: translateY(-2px); }
+.btn-primary:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--cta-dark); }
+.btn-primary[disabled] { background: #d8d4e4; color: #9a95ad; box-shadow: 0 5px 0 #b8b4c8; cursor: not-allowed; transform: none; text-shadow: none; }
+.btn-secondary { background: #fff; color: var(--primary-dark); border: 2px solid #d9d0f5; padding: 10px 20px; }
+.btn-secondary:hover { background: var(--primary-light); }
+.btn-xl { font-size: 20px; padding: 16px 36px; border-radius: 20px; }
+
+/* 面板 */
+.panel {
+  background: var(--card); border-radius: var(--r-md);
+  box-shadow: var(--shadow-card); padding: 24px; margin-bottom: 16px;
+}
+.panel h1 { font-size: 24px; margin-bottom: 10px; }
+.panel p { color: var(--text-muted); margin-bottom: 16px; }
+.row-center { display: flex; justify-content: center; margin: 12px 0; }
+.panel-title { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+.panel-sub { font-size: 13px; font-weight: 400; color: var(--text-muted); margin-left: 8px; }
+.import-block { margin-top: 16px; font-size: 14px; color: var(--text-muted); }
+.import-block input { margin-top: 8px; }
+.import-fb { margin-top: 8px; font-weight: 600; }
+.import-fb.ok { color: #1D9E75; }
+.import-fb.err { color: #E24B4A; }
+
+/* 选英雄 */
+.hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-top: 14px; }
+.hero-cell {
+  background: #fff; border-radius: var(--r-sm); padding: 10px 6px;
+  text-align: center; cursor: pointer; border: 3px solid transparent;
+  transition: all 0.15s; box-shadow: 0 3px 10px rgba(90,60,180,0.08);
+}
+.hero-cell:hover { border-color: var(--primary); transform: translateY(-3px); }
+.hero-cell img { width: 80px; height: 80px; object-fit: contain; }
+.hero-cell .h-name { font-weight: 700; font-size: 15px; margin-top: 6px; }
+.hero-cell .h-rar { font-size: 12px; font-weight: 700; }
+.rar-SSR { color: #d18f00; } .rar-SR { color: #8b5cf6; } .rar-R { color: #1D9E75; } .rar-N { color: #378ADD; }
+
+/* 游戏区 */
+.game-title {
+  text-align: center; font-size: 26px; font-weight: 800; margin-bottom: 12px;
+  background: linear-gradient(90deg, #7c5cff, #ff6b9d);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.game-wrap { position: relative; width: 480px; max-width: 100%; margin: 0 auto 16px; }
+#cv {
+  display: block; width: 100%; border-radius: var(--r-md);
+  box-shadow: var(--shadow-card); background: linear-gradient(180deg, #1b1040 0%, #341a6e 60%, #5b2d8e 100%);
+  touch-action: none;
+}
+.game-mask {
+  position: absolute; inset: 0; border-radius: var(--r-md);
+  background: rgba(27,16,64,0.82);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; color: #fff; text-align: center; padding: 20px;
+}
+.mask-hero img { width: 150px; height: 150px; object-fit: contain; filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5)); }
+.mask-rarity { font-size: 22px; font-weight: 800; letter-spacing: 2px; }
+.mask-tip { font-size: 14px; color: #d9cfff; max-width: 320px; line-height: 1.6; }
+.mask-help { font-size: 13px; color: #b3a8e0; }
+.over-title { font-size: 30px; font-weight: 800; }
+.over-score { font-size: 20px; }
+.over-score strong { color: var(--gold); font-size: 30px; }
+.over-best { font-size: 14px; color: #b3a8e0; }
+
+/* 商店 */
+.shop-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.shop-item {
+  background: #fff; border-radius: var(--r-sm); padding: 14px 10px;
+  text-align: center; border: 2px solid #efe9fb;
+}
+.shop-item .s-icon { font-size: 30px; }
+.shop-item .s-name { font-weight: 700; font-size: 15px; margin: 6px 0 2px; }
+.shop-item .s-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; min-height: 30px; }
+.shop-item .s-cost {
+  background: #fff3d6; color: #8a5d00; border: none; border-radius: 999px;
+  padding: 7px 14px; font-weight: 700; cursor: pointer; font-size: 14px;
+}
+.shop-item .s-cost:hover { background: #ffe9b8; }
+.shop-item .s-cost[disabled] { background: #eee; color: #aaa; cursor: not-allowed; }
+.shop-item.owned-item { border-color: var(--gold); background: #fffaf0; }
+.shop-item .s-owned-tag { color: #1D9E75; font-weight: 700; font-size: 14px; }
+
+/* 咒语 */
+.spell-input-row { display: flex; gap: 10px; }
+.spell-input-row input {
+  flex: 1; border: 2px solid #e4dff2; border-radius: var(--r-md);
+  padding: 12px 16px; font-size: 16px; font-family: inherit; outline: none;
+}
+.spell-input-row input:focus { border-color: var(--primary); }
+.spell-fb { min-height: 26px; margin-top: 10px; font-weight: 700; font-size: 16px; }
+.spell-fb.ok { color: #1D9E75; }
+.spell-fb.err { color: #E24B4A; }
+.spell-hint { margin-top: 8px; font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+
+@media (max-width: 560px) {
+  .game-wrap { width: 100%; }
+  .panel { padding: 18px; }
+}

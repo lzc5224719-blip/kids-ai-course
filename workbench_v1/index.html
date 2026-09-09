@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>制作台 · 和伙伴一起做</title>
+<style>
+  [hidden]{display:none!important;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --bg1:#EAF1FF; --bg2:#F3EAFE; --bg3:#FDEAF3;
+    --card:#FFFFFF; --ink:#2C2C2A; --sub:#6B6B6B;
+    --blue:#378ADD; --purple:#7F77DD; --pink:#D4537E;
+    --orange:#EF9F27; --orange-d:#BA7517; --gold:#EF9F27;
+    --teal:#1D9E75; --gray:#B4B2A9;
+  }
+  html,body{height:100%;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    color:var(--ink);
+    background:linear-gradient(160deg,var(--bg1),var(--bg2) 55%,var(--bg3));
+    min-height:100vh;
+    display:flex;justify-content:center;
+  }
+  .app{width:100%;max-width:520px;padding:0 14px 0;display:flex;flex-direction:column;height:100vh;position:relative;}
+
+  /* 顶栏 */
+  .topbar{display:flex;align-items:center;gap:10px;padding:14px 2px 10px;}
+  .btn-back{background:var(--card);border:none;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--purple);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06);text-decoration:none;white-space:nowrap;}
+  .brand{font-size:18px;font-weight:600;letter-spacing:.5px;flex:1;}
+  .brand small{font-size:12px;color:var(--sub);font-weight:400;margin-left:4px;}
+  .points-pill{background:var(--card);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--orange-d);box-shadow:0 2px 8px rgba(0,0,0,.06);white-space:nowrap;}
+
+  /* 伙伴头 */
+  .partner-head{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:16px;padding:12px 14px;box-shadow:0 4px 14px rgba(0,0,0,.06);}
+  .partner-head img{width:52px;height:64px;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.14));}
+  .partner-head .who{flex:1;}
+  .partner-head .who b{font-size:16px;}
+  .partner-head .who .rar{font-size:12px;color:var(--sub);}
+  .rarity-tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;color:#fff;}
+  .status-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;}
+  .status-on{background:var(--teal);}
+  .status-mock{background:var(--orange);}
+
+  /* 聊天区 */
+  .chat{flex:1;overflow-y:auto;padding:14px 2px;display:flex;flex-direction:column;gap:12px;}
+  .msg{max-width:82%;padding:11px 14px;border-radius:16px;font-size:15px;line-height:1.6;word-break:break-word;animation:pop .18s ease;}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .msg.ai{align-self:flex-start;background:var(--card);border-bottom-left-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.06);}
+  .msg.me{align-self:flex-end;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border-bottom-right-radius:6px;}
+  .msg .meta{font-size:11px;opacity:.6;margin-bottom:3px;}
+
+  /* 快捷建议 */
+  .chips-label{font-size:12px;color:var(--sub);padding:2px 2px 6px;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;padding:2px 2px 12px;}
+  .chip{background:var(--card);border:1px solid #EFEFF2;border-radius:999px;padding:7px 13px;font-size:13px;color:var(--purple);cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.05);}
+  .chip:active{transform:scale(.96);}
+
+  /* AI 追问选项（可点） */
+  .options{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px;padding-left:2px;}
+  .opt{background:#fff;border:2px solid var(--purple);border-radius:999px;padding:9px 15px;font-size:14px;font-weight:600;color:var(--purple);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06);animation:pop .2s ease;}
+  .opt:active{transform:scale(.95);}
+
+  /* 改动卡 */
+  .change-card{background:#FFF7EA;border:2px solid var(--orange);border-radius:16px;padding:14px 16px;box-shadow:0 6px 18px rgba(239,159,39,.18);}
+  .change-card .cc-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .change-card .cc-head b{font-size:16px;color:var(--orange-d);}
+  .change-card .cc-summary{font-size:14px;color:var(--ink);margin-bottom:12px;}
+  .change-card .cc-actions{display:flex;gap:10px;}
+  .btn-apply{flex:1;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--orange),var(--pink));cursor:pointer;box-shadow:0 5px 14px rgba(213,83,126,.28);}
+  .btn-play{flex:1;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;color:var(--purple);background:#fff;border:1.5px solid var(--purple);cursor:pointer;text-align:center;text-decoration:none;}
+
+  /* 输入栏 */
+  .input-bar{display:flex;gap:10px;padding:10px 2px 16px;background:transparent;}
+  .input-bar input{flex:1;border:1.5px solid #E4E2EC;border-radius:14px;padding:13px 14px;font-size:15px;outline:none;}
+  .input-bar input:focus{border-color:var(--purple);}
+  .btn-send{border:none;border-radius:14px;padding:0 20px;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--purple),var(--pink));cursor:pointer;}
+
+  /* 空态 */
+  .empty{text-align:center;padding:80px 20px;}
+  .empty .ghost{font-size:60px;margin-bottom:14px;}
+  .empty p{font-size:15px;color:var(--sub);line-height:1.7;margin-bottom:20px;}
+  .btn-primary{border:none;border-radius:14px;padding:14px 34px;font-size:17px;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--orange),var(--pink));cursor:pointer;box-shadow:0 6px 16px rgba(213,83,126,.3);}
+
+  .typing{display:inline-flex;gap:4px;align-items:center;}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--gray);animation:blink 1s infinite;}
+  .typing i:nth-child(2){animation-delay:.2s}
+  .typing i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+
+  /* ===== 改造状态条（撤销/还原/当前状态） ===== */
+  .modbar{background:#FFF7EA;border:2px solid var(--orange);border-radius:14px;padding:10px 12px;margin-top:10px;box-shadow:0 4px 12px rgba(239,159,39,.15);}
+  .mod-info{font-size:13px;color:var(--orange-d);line-height:1.5;margin-bottom:8px;}
+  .mod-actions{display:flex;gap:8px;}
+  .mod-btn{flex:1;border:1.5px solid var(--orange);background:#fff;color:var(--orange-d);border-radius:10px;padding:7px 4px;font-size:12px;font-weight:600;cursor:pointer;}
+  .mod-btn:disabled{opacity:.4;cursor:default;}
+  .mod-btn.danger-on{background:var(--pink);border-color:var(--pink);color:#fff;}
+
+  /* ===== 没想法求助（不替孩子选题） ===== */
+  .help-ideas{display:block;width:100%;border:1.5px dashed #C9C2E8;background:#FAF9FE;color:#7B72A8;border-radius:12px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px;}
+  .help-ideas:active{transform:scale(.98);}
+
+  /* ===== 版本条 + 弹层 ===== */
+  .verbar{display:flex;gap:8px;margin:8px 0 2px;}
+  .ver-btn{flex:1;background:var(--card);border:1.5px solid #E3DFF2;border-radius:999px;padding:8px 10px;font-size:13px;font-weight:600;color:var(--purple);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+  .ver-btn:active{transform:scale(.97);}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:60;padding:18px;}
+  .modal{background:#fff;border-radius:18px;padding:18px;width:100%;max-width:430px;max-height:80vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.2);}
+  .modal h3{font-size:17px;font-weight:700;margin-bottom:6px;}
+  .modal .sub{font-size:13px;color:var(--sub);margin-bottom:12px;}
+  .ver-input{width:100%;border:1.5px solid #E3DFF2;border-radius:10px;padding:10px 12px;font-size:15px;margin-bottom:12px;box-sizing:border-box;}
+  .ver-actions{display:flex;gap:10px;}
+  .ver-primary{flex:1;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--purple),var(--pink));cursor:pointer;}
+  .ver-ghost{flex:1;border:1.5px solid #E3DFF2;border-radius:12px;padding:11px;font-size:14px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer;}
+  .ver-item{display:flex;align-items:center;gap:8px;border:1.5px solid #EFEFF2;border-radius:12px;padding:9px 10px;margin-bottom:8px;}
+  .ver-item .vi-info{flex:1;min-width:0;}
+  .ver-item .vi-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ver-item .vi-sub{font-size:12px;color:var(--sub);}
+  .vi-btn{border:none;border-radius:9px;padding:6px 8px;font-size:12px;font-weight:600;cursor:pointer;background:#F0EDFB;color:var(--purple);white-space:nowrap;}
+  .vi-btn.play{background:var(--teal);color:#fff;}
+  .vi-btn.del{background:#FDEBEA;color:#C0392B;}
+  .vi-btn.share{background:#E4F0FB;color:#2E86C1;}
+
+  /* ===== AI 头像 ===== */
+  .msg .meta{display:flex;align-items:center;gap:6px;}
+  .msg.me .meta{justify-content:flex-end;}
+  .msg-avatar{width:24px;height:30px;object-fit:contain;border-radius:7px;background:#F0EEFB;display:inline-block;vertical-align:middle;}
+
+  /* ===== 建议与回答选项分层：建议弱、选项强 ===== */
+  .chip{background:#F5F3FB;border:1px solid #E5E1F2;color:#7B72A8;}
+  .opt{background:linear-gradient(135deg,var(--blue),var(--purple));border:none;border-radius:999px;padding:10px 16px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;box-shadow:0 4px 12px rgba(55,138,221,.25);animation:pop .2s ease;}
+
+  .wish-card{background:#F0EDFF;border:2px solid var(--purple);border-radius:16px;padding:12px 16px;box-shadow:0 6px 18px rgba(127,119,221,.16);animation:pop .2s ease;}
+  .wish-card .wish-head{font-size:15px;font-weight:700;color:var(--purple);margin-bottom:6px;}
+  .wish-card .wish-note{font-size:15px;color:var(--ink);margin-bottom:6px;line-height:1.5;}
+  .wish-card .wish-sub{font-size:12px;color:var(--sub);}
+
+  /* ===== 积分跳动 + 归档小卡 + 改造卡动作 ===== */
+  .points-pill.pop{animation:pillpop .6s ease;}
+  @keyframes pillpop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .cc-note{margin:2px 2px 4px;font-size:12px;color:#8A6A2F;background:#FFF3DD;border-radius:10px;padding:7px 10px;display:inline-block;}
+  .btn-skip{display:block;text-align:center;font-size:12px;color:var(--sub);margin-top:8px;text-decoration:underline;}
+  .msg{font-size:16px;line-height:1.65;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 无存档 -->
+  <div id="empty" class="empty" hidden>
+    <div class="ghost">🛠️</div>
+    <p>还没有你的小伙伴。<br>先去认领一个，TA 才能陪你一起做东西。</p>
+    <button class="btn-primary" id="btn-go-claim">去认领我的小伙伴</button>
+  </div>
+
+  <!-- 制作台主体 -->
+  <div id="main" hidden style="display:flex;flex-direction:column;flex:1;min-height:0;">
+    <div class="topbar">
+      <a class="btn-back" href="/workshop_v1/">← 回工坊</a>
+      <div class="brand">制作台<small>和伙伴一起做</small></div>
+      <span class="points-pill" id="points-pill">★ 0</span>
+    </div>
+
+    <div class="partner-head">
+      <img id="partner-img" alt="伙伴">
+      <div class="who">
+        <b id="partner-name"></b>
+        <div class="rar"><span class="rarity-tag" id="rarity-tag"></span><span class="status-dot status-on" id="status-dot"></span><span id="status-text">小伙伴在线</span></div>
+      </div>
+    </div>
+
+    <div class="modbar" id="modbar" hidden>
+      <div class="mod-info" id="mod-info"></div>
+      <div class="mod-actions">
+        <button class="mod-btn" id="btn-undo">↩️ 撤销上一步</button>
+        <button class="mod-btn" id="btn-reset">🔄 还原游戏</button>
+      </div>
+    </div>
+    <div class="verbar">
+      <button class="ver-btn" id="btn-save-version">📦 把这版存起来</button>
+      <button class="ver-btn" id="btn-versions">📁 我的版本</button>
+    </div>
+    <div class="chat" id="chat"></div>
+
+    <button class="help-ideas" id="btn-help-ideas">😶 我还没想好，让伙伴陪我出出主意</button>
+    <div class="chips-label" id="chips-label" hidden>💡 没想法也没关系，点一个当聊天开头——具体改什么，还是你说了算</div>
+    <div class="chips" id="chips" hidden></div>
+
+    <div class="input-bar">
+      <input type="text" id="input" maxlength="80" placeholder="告诉伙伴你想怎么改游戏…">
+      <button class="btn-send" id="btn-send">发送</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var STORAGE_KEY = 'jiahong-claim-v3';
+  var MODS_KEY = 'jiahong-mods';
+  var HISTORY_KEY = 'jiahong-wb-history-v1';
+  var EARN_KEY = 'jiahong-wb-earn';
+  var WISH_KEY = 'jiahong-wb-wishlist-v1';
+  var VERSIONS_KEY = 'jiahong-wb-versions-v1';
+  var CLAIM_BASE = '/claim_v1/';
+  var MAKE_POINTS = 10;
+  var MAX_EARN_DAY = 3;
+
+  var RARITY_COLOR = { 'SSR':'#EF9F27', 'SR':'#7F77DD', 'R':'#378ADD', 'N':'#888780' };
+  var RARITY_CN = { 'SSR':'传说', 'SR':'稀有', 'R':'优质', 'N':'普通' };
+  var MOD_KEYS = ['star_speed','star_size','spawn_interval','gold_chance','bomb_chance','magnet','extra_life','catcher_scale','title'];
+
+  var history = [];   // 会话内对话（发给后端）
+  var save = null, hero = null;
+  var busy = false;
+  var teacherMode = /[?&]teacher=1/.test(location.search);
+
+  function el(id){ return document.getElementById(id); }
+
+  function loadSave(){
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return null;
+      var a = JSON.parse(raw);
+      if(!a.owner || !a.owned || a.owned.length===0) return null;
+      return a;
+    }catch(e){ return null; }
+  }
+  function loadMods(){
+    try { return JSON.parse(localStorage.getItem(MODS_KEY) || '{}'); }catch(e){ return {}; }
+  }
+  function esc(s){ return String(s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); }
+
+  // ---------- 音效 ----------
+  var Sfx = (function(){
+    var ctx = null;
+    function ac(){
+      if(!ctx){ try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+      if(ctx && ctx.state === 'suspended'){ try { ctx.resume(); } catch(e){} }
+      return ctx;
+    }
+    function tone(f, d, type, vol, when){
+      try{
+        var a = ac(); if(!a) return;
+        var o = a.createOscillator(), g = a.createGain();
+        o.type = type || 'sine'; o.frequency.value = f;
+        var t = a.currentTime + (when || 0);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol || 0.08, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + d + 0.05);
+      }catch(e){}
+    }
+    return {
+      send: function(){ tone(520, .08, 'triangle', .05); },
+      reply: function(){ tone(660, .1, 'triangle', .06); setTimeout(function(){ tone(880, .12, 'triangle', .05); }, 90); },
+      apply: function(){ tone(523, .1, 'triangle', .07); setTimeout(function(){ tone(784, .1, 'triangle', .07); }, 90); setTimeout(function(){ tone(1047, .18, 'triangle', .07); }, 180); },
+      undo: function(){ tone(392, .14, 'sine', .06); setTimeout(function(){ tone(330, .16, 'sine', .05); }, 100); },
+      coins: function(){ tone(880, .08, 'square', .03); setTimeout(function(){ tone(1175, .1, 'square', .03); }, 80); setTimeout(function(){ tone(1568, .16, 'square', .03); }, 170); },
+      error: function(){ tone(196, .2, 'sawtooth', .04); },
+    };
+  })();
+
+  // ---------- 积分：制作 +分（绑定作品产出，每天限次防刷） ----------
+  function todayStr(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function earnState(){
+    try {
+      var o = JSON.parse(localStorage.getItem(EARN_KEY) || 'null');
+      if(!o || o.date !== todayStr()) o = { date: todayStr(), n: 0 };
+      return o;
+    } catch(e){ return { date: todayStr(), n: 0 }; }
+  }
+  function awardMake(){
+    if(!save) return { awarded: false, cap: true };
+    var st = earnState();
+    if(st.n >= MAX_EARN_DAY) return { awarded: false, cap: true };
+    save.points = (save.points || 0) + MAKE_POINTS;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(save)); } catch(e){}
+    st.n += 1;
+    try { localStorage.setItem(EARN_KEY, JSON.stringify(st)); } catch(e){}
+    refreshPoints(true);
+    Sfx.coins();
+    return { awarded: true };
+  }
+  function refreshPoints(pop){
+    var p = el('points-pill');
+    p.textContent = '★ ' + (save ? (save.points || 0) : 0);
+    if(pop){
+      p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop');
+      setTimeout(function(){ p.classList.remove('pop'); }, 700);
+    }
+  }
+
+  // ---------- 记忆：对话持久化（伙伴不失忆） ----------
+  function persistHistory(){
+    try {
+      if(!save) return;
+      localStorage.setItem(HISTORY_KEY, JSON.stringify({
+        owner: save.owner, hero: hero ? hero.name : '',
+        msgs: history.slice(-24),
+      }));
+    }catch(e){}
+  }
+  function loadHistoryMemo(){
+    try {
+      var raw = localStorage.getItem(HISTORY_KEY);
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || !o.msgs || !o.msgs.length) return null;
+      if(o.owner !== save.owner) return null;
+      if(hero && o.hero && o.hero !== hero.name) return null;
+      return o.msgs;
+    }catch(e){ return null; }
+  }
+
+  // ---------- 消息渲染 ----------
+  function aiMetaHtml(){
+    if(!hero) return '<div class="meta">' + esc('伙伴') + '</div>';
+    return '<div class="meta"><img class="msg-avatar" src="' + esc(CLAIM_BASE + hero.img) + '" alt="">' + esc(hero.name || hero.originalName || '伙伴') + '</div>';
+  }
+  function addMsg(role, text){
+    var d = document.createElement('div');
+    d.className = 'msg ' + role;
+    if(role === 'ai'){ d.innerHTML = aiMetaHtml() + esc(text); }
+    else { d.innerHTML = '<div class="meta">我</div>' + esc(text); }
+    el('chat').appendChild(d);
+    el('chat').scrollTop = el('chat').scrollHeight;
+    return d;
+  }
+  function addTyping(){
+    var d = document.createElement('div');
+    d.className = 'msg ai';
+    d.innerHTML = aiMetaHtml() + '<span class="typing"><i></i><i></i><i></i></span>';
+    el('chat').appendChild(d);
+    el('chat').scrollTop = el('chat').scrollHeight;
+    return d;
+  }
+  function addArchivedNote(summary){
+    var n = document.createElement('div');
+    n.className = 'cc-note';
+    n.innerHTML = '✨ 当时给出的方案：' + esc(summary || '小小改造');
+    el('chat').appendChild(n);
+    el('chat').scrollTop = el('chat').scrollHeight;
+  }
+  // ---------- 愿望单：大想法先记下来，下次课一起做 ----------
+  function loadWishlist(){
+    try {
+      var raw = localStorage.getItem(WISH_KEY);
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || !o.owner || !o.list) return null;
+      if(o.owner !== (save ? save.owner : '')) return null;
+      return o.list;
+    } catch(e){ return null; }
+  }
+  function addWishCard(note){
+    var text = String(note || '').trim();
+    if(!text) return;
+    var list = loadWishlist() || [];
+    list.push({ note: text, time: Date.now() });
+    if(list.length > 30) list = list.slice(-30);
+    try { localStorage.setItem(WISH_KEY, JSON.stringify({ owner: save ? save.owner : '', list: list })); } catch(e){}
+    var card = document.createElement('div');
+    card.className = 'wish-card';
+    card.innerHTML = '<div class="wish-head">📌 已经写进我的愿望单！</div><div class="wish-note">' + esc(text) + '</div><div class="wish-sub">下次课，我们一起把它做出来～</div>';
+    el('chat').appendChild(card);
+    el('chat').scrollTop = el('chat').scrollHeight;
+  }
+
+  function addOptionRow(options){
+    var row = document.createElement('div');
+    row.className = 'options';
+    (options || []).forEach(function(o){
+      var b = document.createElement('button');
+      b.className = 'opt';
+      b.textContent = o;
+      b.addEventListener('click', function(){ sendText(o); });
+      row.appendChild(b);
+    });
+    el('chat').appendChild(row);
+    el('chat').scrollTop = el('chat').scrollHeight;
+  }
+  function addChangeCard(reply, summary, changes, patch, script){
+    var myChanges = (changes || []).slice();
+    var myPatch = patch ? deepClone(patch) : null;
+    var myScript = (typeof script === 'string' && script.trim()) ? script.trim() : null;
+    var d = document.createElement('div');
+    d.className = 'msg ai';
+    d.style.maxWidth = '100%';
+    d.innerHTML = aiMetaHtml() + esc(reply);
+    el('chat').appendChild(d);
+
+    var card = document.createElement('div');
+    card.className = 'change-card';
+    card.innerHTML =
+      '<div class="cc-head">✨ <b>改造方案</b></div>' +
+      '<div class="cc-summary">' + esc(summary) + '</div>' +
+      '<div class="cc-actions">' +
+        '<button class="btn-apply">✨ 应用，马上能玩新版本</button>' +
+        '<a class="btn-skip" href="/game_v1/">先玩现在的版本对比一下（先不改）</a>' +
+      '</div>';
+    el('chat').appendChild(card);
+    el('chat').scrollTop = el('chat').scrollHeight;
+
+    var btn = card.querySelector('.btn-apply');
+    btn.addEventListener('click', function(){ applyChanges(myChanges, myPatch, myScript, btn); });
+  }
+
+  // ---------- 改造：应用 / 撤销 / 还原 ----------
+  function deepClone(o){ try { return JSON.parse(JSON.stringify(o)); } catch(e){ return o; } }
+  function snapshotState(mods){
+    var o = {};
+    Object.keys(mods).forEach(function(k){ if(k !== '_undo' && k !== 'history') o[k] = deepClone(mods[k]); });
+    return o;
+  }
+  function applyChanges(changes, patch, script, btn){
+    var hasCh = changes && changes.length > 0;
+    var hasPa = !!(patch && (patch.attack || (patch.entities && patch.entities.length)));
+    var hasSc = (typeof script === 'string' && script.trim()) ? true : false;
+    if(!hasCh && !hasPa && !hasSc) return;
+    var mods = loadMods();
+    if(!mods._undo) mods._undo = [];
+    mods._undo.push(snapshotState(mods));
+    if(mods._undo.length > 10) mods._undo.shift();
+    if(hasCh) changes.forEach(function(c){ mods[c.key] = c.value; });
+    if(hasPa) mods.patch = deepClone(patch);
+    if(hasSc) mods.script = script;
+    if(!mods.history) mods.history = [];
+    mods.history.push({ summary: '改造', time: Date.now() });
+    localStorage.setItem(MODS_KEY, JSON.stringify(mods));
+
+    btn.textContent = '✅ 已应用！点这里去玩新版本';
+    btn.onclick = function(){ location.href = '/game_v1/'; };
+    Sfx.apply();
+    refreshModbar();
+    var award = awardMake();
+    addMsg('ai', award.cap
+      ? '改好啦！（今天的制作分已经赚满啦，明天继续赚～）去玩新版本看看效果吧！'
+      : '改好啦！这次动手"制作"赚了 ★' + MAKE_POINTS + '，去玩新版本看看效果吧！');
+  }
+
+  function humanLines(mods){
+    var L = [];
+    function has(k){ return mods[k] !== undefined && mods[k] !== null; }
+    if(has('title')) L.push('名字「' + String(mods.title) + '」');
+    if(has('star_speed')){ var v = Number(mods.star_speed); L.push('速度' + (v <= 1.6 ? '慢很多' : v <= 2.0 ? '慢一点' : v <= 2.5 ? '正常' : v <= 3.2 ? '快一点' : '很快')); }
+    if(has('star_size')){ var s = Number(mods.star_size); L.push('星星' + (s <= 22 ? '变小' : s <= 30 ? '正常' : '变大')); }
+    if(has('spawn_interval')){ var iv = Number(mods.spawn_interval); L.push('星星数量' + (iv <= 600 ? '很多' : iv <= 1200 ? '正常' : '少')); }
+    if(has('gold_chance') && Number(mods.gold_chance) > 0.01) L.push('金星星更多');
+    if(has('bomb_chance') && Number(mods.bomb_chance) > 0.01) L.push('有炸弹星');
+    if(mods.magnet === true) L.push('磁铁开启');
+    if(has('extra_life') && Number(mods.extra_life) > 0) L.push('多' + Number(mods.extra_life) + '条命');
+    if(has('catcher_scale') && Number(mods.catcher_scale) > 1.05) L.push('接得更宽');
+    if(has('duration') && Number(mods.duration) !== 60) L.push('本局 ' + Number(mods.duration) + ' 秒');
+    if(mods.patch){
+      if(mods.patch.attack) L.push('能发射光弹');
+      (mods.patch.entities || []).forEach(function(en){
+        var txt = en.text || en.label || '';
+        if(en.kind === 'bad') L.push('坏蛋' + (txt ? ' ' + txt : ''));
+        else if(en.kind === 'power') L.push('道具' + (txt ? ' ' + txt : '') + '(' + (en.power || '') + ')');
+        else if(en.kind === 'gold') L.push('金星星');
+        else if(txt) L.push(txt);
+      });
+    }
+    if(typeof mods.script === 'string' && mods.script.trim()) L.push('有自定义玩法脚本');
+    return L;
+  }
+  function realMods(mods){ return MOD_KEYS.some(function(k){ return mods[k] !== undefined; }) || mods.duration !== undefined || !!(mods.patch && (mods.patch.attack || (mods.patch.entities && mods.patch.entities.length))) || (typeof mods.script === 'string' && mods.script.trim()); }
+  function refreshModbar(){
+    var bar = el('modbar');
+    if(!bar) return;
+    var mods = loadMods();
+    var lines = humanLines(mods);
+    var hasAny = realMods(mods);
+    bar.hidden = !hasAny;
+    if(!hasAny){
+      el('mod-info').textContent = '';
+      el('btn-undo').disabled = true;
+      el('btn-reset').disabled = true;
+      return;
+    }
+    el('mod-info').textContent = '我的游戏现在：' + lines.join(' · ');
+    el('btn-undo').disabled = !((mods._undo || []).length);
+    el('btn-reset').disabled = false;
+  }
+  function doUndo(){
+    var mods = loadMods();
+    var stack = mods._undo || [];
+    if(!stack.length) return;
+    var prev = stack.pop() || {};
+    var next = {};
+    Object.keys(prev).forEach(function(k){ next[k] = prev[k]; });
+    next._undo = stack;
+    if(mods.history && mods.history.length) next.history = mods.history.slice(0, -1);
+    localStorage.setItem(MODS_KEY, JSON.stringify(next));
+    Sfx.undo();
+    refreshModbar();
+    addMsg('ai', '撤销好啦，游戏回到上一步的样子。还想怎么改？');
+  }
+  var resetArmed = false, resetTimer = null;
+  function doReset(){
+    var mods = loadMods();
+    if(!realMods(mods)) return;
+    var btn = el('btn-reset');
+    if(!resetArmed){
+      resetArmed = true;
+      btn.textContent = '⚠️ 再点一次确认还原';
+      btn.classList.add('danger-on');
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(function(){
+        resetArmed = false; btn.textContent = '🔄 还原游戏'; btn.classList.remove('danger-on');
+      }, 3000);
+      return;
+    }
+    resetArmed = false;
+    clearTimeout(resetTimer);
+    btn.textContent = '🔄 还原游戏';
+    btn.classList.remove('danger-on');
+    localStorage.setItem(MODS_KEY, '{}');
+    Sfx.undo();
+    refreshModbar();
+    addMsg('ai', '好啦，游戏回到最初的样子，像新的一样！想改什么再跟我说～');
+  }
+
+  // ---------- 版本存档：把这版存起来 / 我的版本 / 切换 ----------
+  function loadVersions(){
+    try {
+      var raw = localStorage.getItem(VERSIONS_KEY);
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || !o.owner || !o.list) return null;
+      if(o.owner !== save.owner) return null;
+      return o.list;
+    }catch(e){ return null; }
+  }
+  function saveVersions(list){
+    try { localStorage.setItem(VERSIONS_KEY, JSON.stringify({ owner: save ? save.owner : '', list: list })); } catch(e){}
+  }
+  function payloadMods(){
+    var mods = loadMods();
+    var out = {};
+    Object.keys(mods).forEach(function(k){ if(k !== '_undo' && k !== 'history') out[k] = deepClone(mods[k]); });
+    return out;
+  }
+  // ---------- 分享：版本 → 专属短链接 ----------
+  function verB64(bytes){ var bin=''; for(var i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]); return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+  function makeVersionLink(v){
+    var payload = { n: v.name, o: save ? save.owner : '', h: (hero && save && save.owned && save.owned[0]) ? { name: hero.name, originalName: hero.originalName, rarity: hero.rarity, img: hero.img } : null, m: v.mods || {} };
+    var bytes = new TextEncoder().encode(JSON.stringify(payload));
+    if (window.CompressionStream) {
+      try {
+        var stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
+        return new Response(stream).arrayBuffer().then(function(buf){ return location.origin + '/game_v1/?v=' + 'z.' + verB64(new Uint8Array(buf)); });
+      } catch(e){}
+    }
+    return Promise.resolve(location.origin + '/game_v1/?v=' + 'u.' + verB64(bytes));
+  }
+  function openShare(v){
+    makeVersionLink(v).then(function(link){
+      var ov = openOverlay(
+        '<h3>🔗 分享「' + esc(v.name) + '」</h3>' +
+        '<div class="sub">朋友打开这个链接就能直接玩你这一版（不用认领角色）。发朋友圈/给爸妈：等游戏上线后，任何地方打开都能玩。</div>' +
+        '<input class="ver-input" id="share-link" readonly value="' + esc(link) + '">' +
+        '<div class="ver-actions"><button class="ver-ghost" id="share-close">关闭</button><button class="ver-primary" id="share-copy">复制链接</button></div>'
+      );
+      var inp = ov.querySelector('#share-link');
+      ov.querySelector('#share-close').addEventListener('click', function(){ ov.remove(); });
+      ov.querySelector('#share-copy').addEventListener('click', function(){
+        inp.focus(); inp.select();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(function(){
+            var b = ov.querySelector('#share-copy'); b.textContent = '✅ 已复制！';
+            setTimeout(function(){ ov.remove(); }, 900);
+          });
+        } else {
+          var ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+          var b = ov.querySelector('#share-copy'); b.textContent = ok ? '✅ 已复制！' : '请长按输入框复制';
+          setTimeout(function(){ ov.remove(); }, 1200);
+        }
+      });
+    });
+  }
+
+  function openOverlay(html){
+    var ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal">' + html + '</div>';
+    ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+    return ov;
+  }
+  function openSaveVersion(){
+    var list = loadVersions() || [];
+    var ov = openOverlay(
+      '<h3>📦 把这版存起来</h3>' +
+      '<div class="sub">给这一版起个名字吧（比如：我的怪兽版、慢速版）</div>' +
+      '<input class="ver-input" id="ver-name" maxlength="12" placeholder="版本 ' + (list.length + 1) + '">' +
+      '<div class="ver-actions"><button class="ver-ghost" id="ver-cancel">取消</button><button class="ver-primary" id="ver-ok">保存</button></div>'
+    );
+    var inp = ov.querySelector('#ver-name');
+    inp.value = '版本 ' + (list.length + 1);
+    setTimeout(function(){ inp.focus(); inp.select(); }, 60);
+    ov.querySelector('#ver-cancel').addEventListener('click', function(){ ov.remove(); });
+    ov.querySelector('#ver-ok').addEventListener('click', function(){
+      var name = inp.value.trim() || ('版本 ' + (list.length + 1));
+      var payload = payloadMods();
+      list.unshift({ id: Date.now() + '-' + Math.floor(Math.random() * 999), name: name, ts: Date.now(), mods: payload, title: (payload.title || '') });
+      if(list.length > 30) list = list.slice(0, 30);
+      saveVersions(list);
+      ov.remove();
+      var b = el('btn-save-version');
+      b.textContent = '✅ 已存「' + name + '」';
+      setTimeout(function(){ b.textContent = '📦 把这版存起来'; }, 1800);
+    });
+  }
+  function openVersionList(){
+    var list = loadVersions() || [];
+    var items = list.length
+      ? list.map(function(v, idx){
+          var d = new Date(v.ts);
+          var dateStr = (d.getMonth()+1) + '月' + d.getDate() + '日 ' + (d.getHours()<10?'0':'') + d.getHours() + ':' + (d.getMinutes()<10?'0':'') + d.getMinutes();
+          return '<div class="ver-item"><div class="vi-info"><div class="vi-name">' + esc(v.name) + (v.title ? ' · ' + esc(v.title) : '') + '</div><div class="vi-sub">' + dateStr + '</div></div>' +
+            '<button class="vi-btn play" data-i="' + idx + '">▶ 玩</button>' +
+            '<button class="vi-btn" data-load="' + idx + '">改</button>' +
+            '<button class="vi-btn del" data-del="' + idx + '">删</button>' +
+            '<button class="vi-btn share" data-share="' + idx + '">🔗 分享</button></div>';
+        }).join('')
+      : '<div class="sub">还没有存过版本。改出满意的一版后，点上面的「📦 把这版存起来」。</div>';
+    var ov = openOverlay(
+      '<h3>📁 我的版本</h3>' +
+      '<div class="sub">「▶ 玩」=直接玩这一版；「改」=回到这一版继续改；「删」=删除。</div>' +
+      items +
+      '<div style="margin-top:10px;text-align:center;"><button class="ver-ghost" id="ver-close" style="max-width:130px;">关闭</button></div>'
+    );
+    ov.querySelector('#ver-close').addEventListener('click', function(){ ov.remove(); });
+    ov.querySelectorAll('[data-i]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var v = list[Number(b.getAttribute('data-i'))];
+        if(!v) return;
+        localStorage.setItem(MODS_KEY, JSON.stringify(deepClone(v.mods)));
+        location.href = '/game_v1/';
+      });
+    });
+    ov.querySelectorAll('[data-load]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var v = list[Number(b.getAttribute('data-load'))];
+        if(!v) return;
+        localStorage.setItem(MODS_KEY, JSON.stringify(deepClone(v.mods)));
+        ov.remove();
+        refreshModbar();
+        addMsg('ai', '换到「' + v.name + '」啦！可以继续改，满意了记得再存一版～');
+      });
+    });
+    ov.querySelectorAll('[data-share]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var v = list[Number(b.getAttribute('data-share'))];
+        if(v) openShare(v);
+      });
+    });
+    ov.querySelectorAll('[data-del]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var idx = Number(b.getAttribute('data-del'));
+        list.splice(idx, 1);
+        saveVersions(list);
+        ov.remove();
+        openVersionList();
+      });
+    });
+  }
+
+  // ---------- 与 AI 对话 ----------
+  function requestAI(){
+    if(busy) return;
+    busy = true;
+    var typing = addTyping();
+    var btn = el('btn-send');
+    btn.disabled = true;
+
+    var payload = {
+      messages: history.slice(-16),
+      owner: save ? save.owner : '小朋友',
+      hero: hero ? { name: hero.name, originalName: hero.originalName, rarity: hero.rarity, personality: hero.personality } : null,
+    };
+
+    fetch('/api/chat', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(payload),
+    }).then(function(r){ return r.json(); })
+      .then(function(res){
+        busy = false;
+        typing.remove();
+        btn.disabled = false;
+        var reply = res.reply || '';
+        if(res.action === 'modify'){
+          history.push({ role:'assistant', content: JSON.stringify({ action:'modify', reply:reply, summary:res.summary, changes:res.changes, patch:(res.patch||null), script:(res.script||null) }) });
+          addChangeCard(reply, res.summary, res.changes, res.patch, res.script);
+        } else if(res.action === 'wish'){
+          history.push({ role:'assistant', content: JSON.stringify({ action:'wish', reply:reply, note:(res.note||''), options:(res.options||[]) }) });
+          addMsg('ai', reply);
+          addWishCard(res.note || reply);
+        } else {
+          history.push({ role:'assistant', content: JSON.stringify({ action:'ask', reply:reply, options:(res.options||[]) }) });
+          addMsg('ai', reply);
+        }
+        if(res.options && res.options.length){
+          addOptionRow(res.options);
+        }
+        persistHistory();
+        Sfx.reply();
+      })
+      .catch(function(){
+        busy = false;
+        typing.remove();
+        btn.disabled = false;
+        Sfx.error();
+        addMsg('ai', '哎呀，我卡了一下，你再说一遍好不好？');
+      });
+  }
+
+  function sendText(text){
+    if(busy) return;
+    var input = el('input');
+    text = (text == null ? input.value : String(text)).trim();
+    if(!text) return;
+    input.value = '';
+    addMsg('me', text);
+    history.push({ role:'user', content:text });
+    persistHistory();
+    Sfx.send();
+    requestAI();
+  }
+  function send(){ sendText(el('input').value); }
+
+  function renderMemo(msgs){
+    msgs.forEach(function(m){
+      if(!m) return;
+      if(m.role === 'user'){ addMsg('me', String(m.content || '')); return; }
+      if(m.role !== 'assistant') return;
+      var parsed = null;
+      try { parsed = JSON.parse(m.content); } catch(e){}
+      if(!parsed || !parsed.reply){ addMsg('ai', String(m.content || '')); return; }
+      addMsg('ai', parsed.reply);
+      if(parsed.action === 'modify'){ addArchivedNote(parsed.summary); }
+      else if(parsed.action === 'wish' && parsed.note){ addArchivedNote('📌 愿望：' + parsed.note); }
+    });
+  }
+
+  function init(){
+    save = loadSave();
+    if(!save){
+      el('empty').hidden = false;
+      el('main').hidden = true;
+      el('btn-go-claim').addEventListener('click', function(){ location.href = '/claim_v1/'; });
+      return;
+    }
+    el('empty').hidden = true;
+    el('main').hidden = false;
+    el('main').style.display = 'flex';
+
+    hero = save.owned[0];
+    var heroName = hero.name || hero.originalName || '伙伴';
+    var rarity = hero.rarity || 'N';
+
+    refreshPoints(false);
+    el('points-pill').title = '积分用来抽新伙伴、升级伙伴（去扭蛋机）';
+    el('partner-img').src = CLAIM_BASE + hero.img;
+    el('partner-name').textContent = heroName;
+    var tag = el('rarity-tag');
+    tag.textContent = RARITY_CN[rarity] || rarity;
+    tag.style.background = RARITY_COLOR[rarity] || '#888780';
+
+    // 状态：仅老师模式(?teacher=1)显示，儿童不显示
+    if(!teacherMode){
+      el('status-dot').style.display = 'none';
+      el('status-text').style.display = 'none';
+    } else {
+      fetch('/api/health').then(function(r){ return r.json(); }).then(function(h){
+        el('status-dot').className = 'status-dot ' + (h.mock ? 'status-mock' : 'status-on');
+        el('status-text').textContent = h.mock ? '演示模式' : '小伙伴在线';
+      }).catch(function(){});
+    }
+
+    // 快捷建议
+    var CHIPS = [
+      { label: '⚡ 速度',    text: '我想改改速度' },
+      { label: '🌧️ 数量',    text: '我想改改星星的数量' },
+      { label: '🔍 大小',    text: '我想改改星星的大小' },
+      { label: '🎮 难度',    text: '我想改改难度' },
+      { label: '⭐ 奖励',    text: '我想改改奖励' },
+      { label: '🎭 角色',    text: '我想让角色变厉害' },
+    ];
+    var chips = el('chips');
+    CHIPS.forEach(function(c){
+      var b = document.createElement('button');
+      b.className = 'chip';
+      b.textContent = c.label;
+      b.addEventListener('click', function(){ sendText(c.text); });
+      chips.appendChild(b);
+    });
+
+    // 默认不给方向菜单：孩子没想法时才展开（只当聊天开头，不当选项）
+    el('chips').hidden = true;
+    el('chips-label').hidden = true;
+    var btnIdeas = el('btn-help-ideas');
+    btnIdeas.addEventListener('click', function(){
+      btnIdeas.hidden = true;
+      el('chips-label').hidden = false;
+      el('chips').hidden = false;
+    });
+
+    // 状态条按钮
+    el('btn-undo').addEventListener('click', doUndo);
+    el('btn-save-version').addEventListener('click', openSaveVersion);
+    el('btn-versions').addEventListener('click', openVersionList);
+    el('btn-reset').addEventListener('click', doReset);
+    refreshModbar();
+
+    // 记忆续聊 or 开场白
+    var memo = loadHistoryMemo();
+    if(memo && memo.length){
+      history = memo.slice();
+      renderMemo(memo);
+      addMsg('ai', '我们接着上次的聊～你现在的游戏' + (realMods(loadMods()) ? '已经改过一些啦，' : '还是最初的样子，') + '想再改点什么？');
+    } else {
+      addMsg('ai', '嗨，' + (save.owner || '小朋友') + '！我是' + heroName + '。你想让「星星大冒险」变得更好玩吗？告诉我，我帮你改出来～');
+    }
+    persistHistory();
+
+    el('btn-send').addEventListener('click', send);
+    el('input').addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.isComposing && e.keyCode!==229) send(); });
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>

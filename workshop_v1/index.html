@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>我的工坊</title>
+<style>
+  [hidden]{display:none!important;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --bg1:#EAF1FF; --bg2:#F3EAFE; --bg3:#FDEAF3;
+    --card:#FFFFFF; --ink:#2C2C2A; --sub:#6B6B6B;
+    --blue:#378ADD; --purple:#7F77DD; --pink:#D4537E;
+    --orange:#EF9F27; --orange-d:#BA7517; --gold:#EF9F27;
+    --teal:#1D9E75; --gray:#B4B2A9;
+  }
+  html,body{height:100%;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    color:var(--ink);
+    background:linear-gradient(160deg,var(--bg1),var(--bg2) 55%,var(--bg3));
+    min-height:100vh;
+    display:flex;justify-content:center;
+  }
+  .app{width:100%;max-width:520px;padding:0 14px 28px;position:relative;}
+
+  /* ===== 顶部栏 ===== */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 2px 10px;}
+  .brand{font-size:20px;font-weight:600;letter-spacing:.5px;}
+  .brand .home{font-size:13px;color:var(--sub);font-weight:400;margin-left:4px;}
+  .top-right{display:flex;align-items:center;gap:8px;}
+  .points-pill{background:var(--card);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;color:var(--orange-d);box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .btn-takehome{background:var(--card);border:none;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--purple);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .btn-workbench{
+    display:block;width:100%;margin-top:18px;border:none;border-radius:16px;
+    padding:15px 16px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;
+    background:linear-gradient(135deg,var(--blue),var(--purple));
+    box-shadow:0 6px 16px rgba(55,138,221,.25);transition:transform .12s;
+  }
+  .btn-workbench:active{transform:scale(.97);}
+  .btn-workbench small{display:block;font-size:12px;font-weight:400;opacity:.85;margin-top:3px;}
+
+  /* ===== 伙伴区 ===== */
+  .partner{display:flex;flex-direction:column;align-items:center;margin-top:6px;}
+  .bubble{
+    position:relative;background:var(--card);border-radius:18px;
+    padding:14px 18px;max-width:90%;font-size:15px;line-height:1.6;
+    box-shadow:0 6px 18px rgba(0,0,0,.08);cursor:pointer;
+  }
+  .bubble::after{
+    content:"";position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);
+    border:10px solid transparent;border-top-color:var(--card);border-bottom:none;
+  }
+  .bubble .hint{display:block;margin-top:4px;font-size:11px;color:var(--gray);text-align:center;}
+  .partner-figure{margin-top:16px;position:relative;cursor:pointer;}
+  .partner-figure img{
+    width:150px;height:190px;object-fit:contain;
+    animation:float 3s ease-in-out infinite;filter:drop-shadow(0 10px 14px rgba(0,0,0,.18));
+  }
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .name-tag{
+    display:inline-flex;align-items:center;gap:7px;margin-top:2px;
+    background:var(--card);border-radius:999px;padding:6px 14px;font-size:15px;font-weight:600;
+    box-shadow:0 3px 10px rgba(0,0,0,.08);
+  }
+  .rarity-dot{width:11px;height:11px;border-radius:50%;}
+  .crew{margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+  .crew .avatar{width:42px;height:42px;border-radius:50%;background:var(--card);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);border:2px solid #fff;}
+  .crew .avatar img{width:100%;height:100%;object-fit:cover;}
+  .crew .avatar.current{border-color:var(--orange);}
+
+  /* ===== 积分进度 ===== */
+  .progress-wrap{margin-top:18px;background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:0 4px 14px rgba(0,0,0,.06);}
+  .progress-head{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;}
+  .progress-head b{color:var(--orange-d);}
+  .bar{height:10px;border-radius:999px;background:#EFEFF2;overflow:hidden;}
+  .bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--orange),var(--pink));transition:width .5s;}
+
+  /* ===== 作品架 ===== */
+  .shelf-title{margin:22px 2px 10px;font-size:18px;font-weight:600;}
+  .shelf{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .work{
+    background:var(--card);border-radius:16px;padding:16px 14px;cursor:pointer;
+    box-shadow:0 4px 14px rgba(0,0,0,.06);transition:transform .12s;
+    display:flex;flex-direction:column;gap:10px;border:2px solid transparent;
+  }
+  .work:active{transform:scale(.97);}
+  .work.done{border-color:var(--teal);}
+  .work.locked{opacity:.6;cursor:default;border-color:#EDEDED;}
+  .work-icon{
+    width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+    font-size:20px;font-weight:700;color:#fff;
+  }
+  .work-title{font-size:16px;font-weight:600;}
+  .work-type{font-size:12px;color:var(--sub);}
+  .work-badge{align-self:flex-start;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;}
+  .done .work-badge{background:#E1F5EE;color:var(--teal);}
+  .locked .work-badge{background:#F1EFE8;color:#888780;}
+  .locked .work-icon{background:#D3D1C7;}
+  .inbox{display:flex;flex-direction:column;gap:8px;margin-top:2px;}
+  .inbox-item{background:#F4F1FF;border:1.5px solid #E5DFF7;border-radius:12px;padding:10px 12px;}
+  .inbox-item .ii-text{font-size:14px;color:var(--ink);line-height:1.5;margin-bottom:4px;}
+  .inbox-item .ii-sub{font-size:12px;color:var(--sub);}
+
+  /* ===== 无存档引导 ===== */
+  .empty{text-align:center;padding:90px 20px;}
+  .empty .ghost{font-size:60px;margin-bottom:14px;}
+  .empty p{font-size:16px;color:var(--sub);line-height:1.7;margin-bottom:22px;}
+  .btn-primary{
+    border:none;border-radius:14px;padding:14px 34px;font-size:17px;font-weight:600;color:#fff;
+    background:linear-gradient(135deg,var(--orange),var(--pink));cursor:pointer;box-shadow:0 6px 16px rgba(213,83,126,.3);
+  }
+
+  /* ===== 弹层 ===== */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.42);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .modal{background:#fff;border-radius:18px;padding:22px;max-width:400px;width:100%;}
+  .modal h3{font-size:17px;font-weight:600;margin-bottom:10px;}
+  .modal p{font-size:14px;color:var(--sub);line-height:1.7;margin-bottom:12px;}
+  .code-box{background:#F5F5F7;border-radius:12px;padding:12px;font-size:12px;font-family:monospace;word-break:break-all;max-height:120px;overflow:auto;margin-bottom:14px;}
+  .modal .row{display:flex;gap:10px;}
+  .modal button{flex:1;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;}
+  .btn-copy{background:var(--blue);color:#fff;}
+  .btn-close{background:#EFEFF2;color:var(--ink);}
+</style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- 无存档 -->
+    <div id="empty" class="empty" hidden>
+      <div class="ghost">★</div>
+      <p>这里还没有你的工坊。<br>先去认领一个属于你的 AI 小伙伴吧，<br>TA 会陪你把想法做成作品。</p>
+      <button class="btn-primary" id="btn-go-claim">去认领我的小伙伴</button>
+    </div>
+
+    <!-- 有存档 -->
+    <div id="main" hidden>
+      <div class="topbar">
+        <div class="brand"><span id="brand-name">我的工坊</span><span class="home">· 家</span></div>
+        <div class="top-right">
+          <span class="points-pill" id="points-pill">★ 0</span>
+          <button class="btn-takehome" id="btn-takehome">带回家</button>
+        </div>
+      </div>
+
+      <div class="partner">
+        <div class="bubble" id="bubble">
+          <span id="bubble-text">……</span>
+          <span class="hint">点我或点小伙伴，听 TA 说话</span>
+        </div>
+        <div class="partner-figure" id="partner-figure">
+          <img id="partner-img" alt="伙伴立绘">
+          <div class="name-tag"><span id="partner-name"></span><span class="rarity-dot" id="rarity-dot"></span><span id="rarity-text" style="font-size:12px;color:var(--sub)"></span></div>
+        </div>
+        <div class="crew" id="crew"></div>
+      </div>
+
+      <button class="btn-workbench" id="btn-workbench">🛠 想让游戏更好玩？去找伙伴帮忙！<small>跟 TA 说你的想法，TA 帮你把游戏改出来</small></button>
+
+      <div class="progress-wrap">
+        <div class="progress-head"><span>成长积分</span><b id="progress-num">0 / 2000</b></div>
+        <div class="bar"><i id="progress-fill" style="width:0%"></i></div>
+      </div>
+
+      <div class="shelf-title">我的作品架</div>
+      <div class="shelf" id="shelf"></div>
+      <div class="shelf-title" id="inbox-title" hidden>💌 大家给我的建议</div>
+      <div class="inbox" id="inbox" hidden></div>
+    </div>
+
+    <!-- 带回家弹层 -->
+    <div class="overlay" id="takehome-overlay" hidden>
+      <div class="modal">
+        <h3>把工坊带回家</h3>
+        <p>这段「存档码」就是你的工坊钥匙。把它发到爸妈手机上，打开工坊、输入存档码，你的小伙伴和作品就都在了。</p>
+        <div class="code-box" id="code-box"></div>
+        <div class="row">
+          <button class="btn-copy" id="btn-copy">复制存档码</button>
+          <button class="btn-close" id="btn-close">知道了</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+(function () {
+  'use strict';
+  var STORAGE_KEY = 'jiahong-claim-v3';
+  var CLAIM_BASE = '/claim_v1/';
+
+  var WORKS = [
+    { id:'star', title:'星星大冒险', type:'接星星游戏', icon:'星', color:'#378ADD', status:'done', url:'/game_v1/' },
+    { id:'math', title:'口算小工具', type:'帮我练口算', icon:'算', color:'#D4537E', status:'locked' },
+    { id:'plan', title:'每日计划', type:'帮我不拖延', icon:'计', color:'#1D9E75', status:'locked' },
+    { id:'money', title:'零花钱管家', type:'帮我记账', icon:'钱', color:'#BA7517', status:'locked' },
+  ];
+
+  var RARITY_COLOR = { 'SSR':'#EF9F27', 'SR':'#7F77DD', 'R':'#378ADD', 'N':'#888780' };
+  var RARITY_CN = { 'SSR':'传说', 'SR':'稀有', 'R':'优质', 'N':'普通' };
+
+  function loadSave() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var a = JSON.parse(raw);
+      if (!a.owner || !a.owned || a.owned.length === 0) return null;
+      return a;
+    } catch (e) { return null; }
+  }
+
+  // ============ 存档码：压缩 + URL 安全短码（z.=deflate 压缩 / u.=不压缩），旧长码仍兼容 ============
+  function bytesToB64url(bytes) {
+    var bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function b64urlToBytes(s) {
+    s = s.replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    var bin = atob(s), out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function utf8Bytes(str) { return new TextEncoder().encode(str); }
+  function utf8String(bytes) { return new TextDecoder().decode(bytes); }
+  function deflateBytes(bytes) {
+    var stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
+    return new Response(stream).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+  }
+  function inflateBytes(bytes) {
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+    return new Response(stream).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+  }
+  function makeCode(save) {
+    var bytes = utf8Bytes(JSON.stringify(save));
+    function plain() { return Promise.resolve('u.' + bytesToB64url(bytes)); }
+    if (window.CompressionStream && window.DecompressionStream) {
+      try {
+        return deflateBytes(bytes).then(function (z) { return 'z.' + bytesToB64url(z); }, plain);
+      } catch (e) { return plain(); }
+    }
+    return plain();
+  }
+  function restoreFromHash() {
+    return new Promise(function (resolve) {
+      try {
+        var m = location.hash.match(/[#&]c=([^&]+)/);
+        if (!m) return resolve(false);
+        var s = m[1];
+        function done(json) {
+          try {
+            var a = JSON.parse(json);
+            if (!a.owner || !a.owned) return resolve(false);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(a));
+            resolve(true);
+          } catch (e) { resolve(false); }
+        }
+        if (s.indexOf('z.') === 0) {
+          inflateBytes(b64urlToBytes(s.slice(2))).then(function (b) { done(utf8String(b)); }, function () { resolve(false); });
+        } else if (s.indexOf('u.') === 0) {
+          done(utf8String(b64urlToBytes(s.slice(2))));
+        } else {
+          done(decodeURIComponent(escape(atob(s)))); // 兼容旧长码
+        }
+      } catch (e) { resolve(false); }
+    });
+  }
+
+  function el(id) { return document.getElementById(id); }
+
+  function render() {
+    var save = loadSave();
+    if (!save) {
+      el('empty').hidden = false;
+      el('main').hidden = true;
+      return;
+    }
+    el('empty').hidden = true;
+    el('main').hidden = false;
+
+    var owner = save.owner || '小朋友';
+    var hero = save.owned[0];           // 门口站着的伙伴 = 最早认领的那个
+    var heroName = hero.name || hero.originalName || '伙伴';
+    var rarity = hero.rarity || 'N';
+
+    el('brand-name').textContent = owner + '的工坊';
+    el('points-pill').textContent = '★ ' + (save.points || 0);
+    el('partner-img').src = CLAIM_BASE + hero.img;
+    el('partner-name').textContent = heroName;
+    var wbBtn = el('btn-workbench');
+    if (wbBtn) {
+      wbBtn.textContent = '';
+      var t1 = document.createElement('span');
+      t1.textContent = '🛠 想让游戏更好玩？去找「' + heroName + '」帮忙！';
+      var t2 = document.createElement('small');
+      t2.textContent = '跟 TA 说你的想法，TA 帮你把游戏改出来';
+      wbBtn.appendChild(t1);
+      wbBtn.appendChild(document.createElement('br'));
+      wbBtn.appendChild(t2);
+    }
+    el('rarity-text').textContent = RARITY_CN[rarity] || rarity;
+    el('rarity-dot').style.background = RARITY_COLOR[rarity] || '#888780';
+
+    // 台词
+    var doneCount = 1; // 已解锁作品数（demo 里星星大冒险）
+    var lines = [
+      '嗨，' + owner + '！我是' + heroName + '，你的 AI 小伙伴，欢迎回到咱们的工坊～',
+      '看，作品架上摆着你做过的每一件东西，都是你的本事。',
+      '你亲手做的「星星大冒险」就在那儿，点进去玩一把？',
+      '等我们学会更多，我还要陪你做口算器、计划表、零花钱管家。',
+      '越做越满，这里就会越来越像你的小天地啦～',
+    ];
+    var lineIdx = 0;
+    el('bubble-text').textContent = lines[0];
+    function nextLine() {
+      lineIdx = (lineIdx + 1) % lines.length;
+      el('bubble-text').textContent = lines[lineIdx];
+    }
+    el('bubble').onclick = nextLine;
+    el('partner-figure').onclick = nextLine;
+
+    // 我的伙伴们
+    var crew = el('crew');
+    crew.innerHTML = '';
+    save.owned.forEach(function (h, i) {
+      var d = document.createElement('div');
+      d.className = 'avatar' + (i === 0 ? ' current' : '');
+      var im = document.createElement('img');
+      im.src = CLAIM_BASE + h.img;
+      im.alt = h.name;
+      d.appendChild(im);
+      d.title = h.name;
+      d.onclick = function () { swapHero(i); };
+      crew.appendChild(d);
+    });
+
+    // 积分进度
+    var pts = save.points || 0;
+    el('progress-num').textContent = pts + ' / 2000';
+    el('progress-fill').style.width = Math.min(pts / 2000 * 100, 100) + '%';
+
+    // 作品架
+    var shelf = el('shelf');
+    shelf.innerHTML = '';
+    WORKS.forEach(function (w) {
+      var card = document.createElement('div');
+      card.className = 'work ' + w.status;
+      var badge = w.status === 'done' ? '已制作' : '待解锁';
+      card.innerHTML =
+        '<div class="work-icon" style="background:' + w.color + '">' + w.icon + '</div>' +
+        '<div class="work-title">' + w.title + '</div>' +
+        '<div class="work-type">' + w.type + '</div>' +
+        '<span class="work-badge">' + badge + '</span>';
+      if (w.status === 'done') {
+        card.onclick = function () { location.href = w.url; };
+      }
+      shelf.appendChild(card);
+    });
+    loadInbox(save.owner);
+  }
+
+  function loadInbox(owner){
+    var box = el('inbox'), ttl = el('inbox-title');
+    if(!owner || !box){ if(ttl) ttl.hidden = true; if(box) box.hidden = true; return; }
+    fetch('/api/suggest?owner=' + encodeURIComponent(owner)).then(function(r){ return r.json(); }).then(function(res){
+      var list = (res && res.list) || [];
+      if(!list.length){ if(ttl) ttl.hidden = true; box.hidden = true; return; }
+      if(ttl) ttl.hidden = false;
+      box.hidden = false;
+      box.innerHTML = '';
+      list.slice(0, 12).forEach(function(it){
+        var d = new Date(it.ts);
+        var timeStr = (d.getMonth()+1) + '月' + d.getDate() + '日';
+        var row = document.createElement('div');
+        row.className = 'inbox-item';
+        var t1 = document.createElement('div'); t1.className = 'ii-text'; t1.textContent = it.text || '';
+        var t2 = document.createElement('div'); t2.className = 'ii-sub';
+        t2.textContent = (it.version ? ('对「' + it.version + '」') : '') + (it.hero ? (' · ' + it.hero) : '') + ' · ' + timeStr;
+        row.appendChild(t1); row.appendChild(t2);
+        box.appendChild(row);
+      });
+    }).catch(function(){ if(ttl) ttl.hidden = true; box.hidden = true; });
+  }
+
+  function swapHero(i) {
+    var save = loadSave();
+    if (!save) return;
+    var h = save.owned[i];
+    if (!h) return;
+    save.owned.splice(i, 1);
+    save.owned.unshift(h);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(save));
+    render();
+  }
+
+  // 带回家
+  el('btn-takehome').addEventListener('click', function () {
+    var save = loadSave();
+    if (!save) return;
+    el('takehome-overlay').hidden = false;
+    el('code-box').textContent = '生成中…';
+    makeCode(save).then(function (code) {
+      el('code-box').textContent = code;
+    });
+  });
+
+  el('btn-copy').addEventListener('click', function () {
+    var text = el('code-box').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ el('btn-copy').textContent = '已复制'; });
+    } else {
+      el('btn-copy').textContent = '长按上方复制';
+    }
+  });
+  el('btn-close').addEventListener('click', function () { el('takehome-overlay').hidden = true; });
+  el('takehome-overlay').addEventListener('click', function (e) {
+    if (e.target === this) this.hidden = true;
+  });
+
+  el('btn-go-claim').addEventListener('click', function () { location.href = '/claim_v1/'; });
+  var btnWorkbench = el('btn-workbench');
+  if (btnWorkbench) btnWorkbench.addEventListener('click', function () { location.href = '/workbench_v1/'; });
+
+  // 初始化：先尝试从 hash 恢复（带回家），再渲染
+  restoreFromHash().then(function (restored) {
+    if (restored && location.hash) {
+      history.replaceState(null, '', location.pathname); // 清掉 hash
+    }
+    render();
+  });
+
+  // 初始化：先尝试从 hash 恢复（带回家），再渲染
+  var restored = restoreFromHash();
+  if (restored && location.hash) {
+    history.replaceState(null, '', location.pathname); // 清掉 hash
+  }
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Render 蓝图：把整个仓库推到 GitHub 后，在 Render 选 Blueprint 或手动 New Web Service 用本文件
+services:
+  - type: web
+    name: kids-ai-course
+    runtime: node
+    plan: free
+    buildCommand: "echo no-build-needed"
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      # 在 Render 后台填你的 DeepSeek key（platform.deepseek.com 生成），别写进仓库
+      - key: DEEPSEEK_API_KEY
+        sync: false

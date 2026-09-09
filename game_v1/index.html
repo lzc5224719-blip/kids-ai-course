@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星星大冒险</title>
+<link rel="stylesheet" href="style.css">
+  <style>
+  .suggest-panel{margin-top:14px;border:2px solid #7F77DD;background:#F5F2FF;}
+  .suggest-sub{font-size:13px;color:#6B6B6B;line-height:1.6;margin-bottom:10px;}
+  #suggest-text{width:100%;box-sizing:border-box;border:1.5px solid #DCD6F2;border-radius:12px;padding:10px 12px;font-size:15px;font-family:inherit;resize:none;margin-bottom:10px;}
+  .suggest-fb{font-size:13px;margin-top:8px;min-height:18px;}
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <div class="logo" id="logo-title">⭐ 星星大冒险</div>
+    <div class="topbar-right">
+      <a class="btn-link" href="/workbench_v1/">🛠 制作台</a>
+      <a class="btn-link" href="/workshop_v1/">← 回工坊</a>
+    </div>
+  </header>
+
+  <!-- 无角色时的引导 -->
+  <section class="panel" id="no-hero" hidden>
+    <h1>还没有认领你的英雄！</h1>
+    <p>先去扭蛋机认领一个专属角色，TA 才会来帮你接星星。</p>
+    <div class="row-center">
+      <a class="btn btn-primary btn-xl" href="/claim_v1/">🎰 去认领角色</a>
+    </div>
+    <details class="import-block">
+      <summary>我有英雄包文件（.json）</summary>
+      <input type="file" id="import-file" accept=".json">
+      <div class="import-fb" id="import-fb"></div>
+    </details>
+  </section>
+
+  <!-- 选角色（有多个角色时） -->
+  <section class="panel" id="hero-select" hidden>
+    <h1>选一位英雄出战</h1>
+    <div class="hero-grid" id="hero-grid"></div>
+  </section>
+
+  <!-- 游戏主界面 -->
+  <section id="game-area" hidden>
+    <div class="game-title" id="game-title">XX 的星星大冒险</div>
+    <div class="game-wrap">
+      <canvas id="cv" width="480" height="640"></canvas>
+      <!-- 开始遮罩 -->
+      <div class="game-mask" id="mask-start">
+        <div class="mask-hero"><img id="mask-hero-img" alt=""></div>
+        <div class="mask-rarity" id="mask-rarity"></div>
+        <div class="mask-tip" id="mask-tip"></div>
+        <button class="btn btn-primary btn-xl" id="btn-start">🎮 开始游戏</button>
+        <div class="mask-help">移动鼠标 / 手指 / 方向键 控制角色接星星</div>
+      </div>
+      <!-- 结束遮罩 -->
+      <div class="game-mask" id="mask-over" hidden>
+        <div class="over-title" id="over-title">游戏结束</div>
+        <div class="over-score">本局得分 <strong id="over-score">0</strong></div>
+        <div class="over-best">历史最高 <span id="over-best">0</span></div>
+        <button class="btn btn-primary btn-xl" id="btn-restart">🔁 再来一局</button>
+        <button class="btn btn-secondary" id="btn-change-hero">换一位英雄</button>
+      </div>
+    </div>
+
+    <!-- 建议（分享链接的玩家玩完后给创作者提建议，裂变闭环） -->
+    <div class="panel suggest-panel" id="suggest-panel" hidden>
+      <div class="panel-title">💡 给做游戏的人提个建议</div>
+      <div class="suggest-sub" id="suggest-sub"></div>
+      <textarea id="suggest-text" rows="2" maxlength="120" placeholder="哪里最好玩？哪里可以更好？想到什么写什么～"></textarea>
+      <button class="btn btn-primary" id="btn-suggest">✉️ 发给他</button>
+      <div class="suggest-fb" id="suggest-fb"></div>
+      <a class="btn-link" href="/claim_v1/" style="display:block;text-align:center;margin-top:10px;">🎮 也想自己做游戏？先去认领一个伙伴 →</a>
+    </div>
+  </section>
+
+</div>
+<script src="game.js"></script>
+</body>
+</html>
