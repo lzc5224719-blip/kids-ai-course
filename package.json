@@ -1,0 +1,13 @@
+{
+  "name": "kids-ai-course",
+  "version": "1.0.0",
+  "private": true,
+  "description": "儿童 AI 课程 · 星星大冒险（零依赖 Node 静态 + DeepSeek 代理）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
