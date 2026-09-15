@@ -92,6 +92,7 @@
     font-size:20px;font-weight:700;color:#fff;
   }
   .work-title{font-size:16px;font-weight:600;}
+  .work-cat{align-self:flex-start;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid currentColor;opacity:.9;white-space:nowrap;}
   .work-type{font-size:12px;color:var(--sub);}
   .work-badge{align-self:flex-start;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;}
   .done .work-badge{background:#E1F5EE;color:var(--teal);}
@@ -166,6 +167,8 @@
       <div class="shelf" id="shelf"></div>
       <div class="shelf-title" id="inbox-title" hidden>💌 大家给我的建议</div>
       <div class="inbox" id="inbox" hidden></div>
+      <div class="shelf-title" id="growth-title" hidden>📈 我的成长档案</div>
+      <div class="inbox" id="growth" hidden></div>
     </div>
 
     <!-- 带回家弹层 -->
@@ -190,12 +193,14 @@
   var CLAIM_BASE = '/claim_v1/';
 
   var WORKS = [
-    { id:'star', title:'星星大冒险', type:'接星星游戏', icon:'星', color:'#378ADD', status:'done', url:'/game_v1/' },
-    { id:'math', title:'口算小工具', type:'帮我练口算', icon:'算', color:'#D4537E', status:'locked' },
-    { id:'plan', title:'每日计划', type:'帮我不拖延', icon:'计', color:'#1D9E75', status:'locked' },
-    { id:'money', title:'零花钱管家', type:'帮我记账', icon:'钱', color:'#BA7517', status:'locked' },
+    { id:'star', title:'星星大冒险', type:'接星星游戏', cat:'创造与游戏', icon:'星', color:'#378ADD', status:'done', url:'/game_v1/' },
+    { id:'math', title:'口算小工具', type:'帮我练口算', cat:'学习与教育', icon:'算', color:'#D4537E', status:'locked' },
+    { id:'plan', title:'每日计划', type:'帮我不拖延', cat:'效率与习惯', icon:'计', color:'#1D9E75', status:'locked' },
+    { id:'money', title:'零花钱管家', type:'帮我记账', cat:'生活与理财', icon:'钱', color:'#BA7517', status:'locked' },
   ];
 
+  var CAT_ICONS = { '创造与游戏':'🎮', '学习与教育':'📚', '效率与习惯':'⏰', '生活与理财':'💰' };
+  // cat=主类；将来横跨两类的"综合项目"作品再加 sub=副类，卡片会显示"主＋副"
   var RARITY_COLOR = { 'SSR':'#EF9F27', 'SR':'#7F77DD', 'R':'#378ADD', 'N':'#888780' };
   var RARITY_CN = { 'SSR':'传说', 'SR':'稀有', 'R':'优质', 'N':'普通' };
 
@@ -308,7 +313,7 @@
       '嗨，' + owner + '！我是' + heroName + '，你的 AI 小伙伴，欢迎回到咱们的工坊～',
       '看，作品架上摆着你做过的每一件东西，都是你的本事。',
       '你亲手做的「星星大冒险」就在那儿，点进去玩一把？',
-      '等我们学会更多，我还要陪你做口算器、计划表、零花钱管家。',
+      '看到想做的，先记进愿望单，等我们把它排进课表，我陪你一起做。',
       '越做越满，这里就会越来越像你的小天地啦～',
     ];
     var lineIdx = 0;
@@ -337,8 +342,9 @@
 
     // 积分进度
     var pts = save.points || 0;
-    el('progress-num').textContent = pts + ' / 2000';
-    el('progress-fill').style.width = Math.min(pts / 2000 * 100, 100) + '%';
+    var GOAL = 240;   // 一期 8 节 × 每天最多 3 次 × 10 分
+    el('progress-num').textContent = pts + ' / ' + GOAL;
+    el('progress-fill').style.width = Math.min(pts / GOAL * 100, 100) + '%';
 
     // 作品架
     var shelf = el('shelf');
@@ -346,18 +352,66 @@
     WORKS.forEach(function (w) {
       var card = document.createElement('div');
       card.className = 'work ' + w.status;
-      var badge = w.status === 'done' ? '已制作' : '待解锁';
+      var badge = w.status === 'done' ? '已制作' : '📌 愿望单';
+      var catChip = '';
+      if (w.cat) {
+        catChip = '<span class="work-cat" style="color:' + w.color + '">' + ((CAT_ICONS[w.cat] || '') + ' ' + w.cat) + (w.sub ? ' ＋ ' + ((CAT_ICONS[w.sub] || '') + ' ' + w.sub) : '') + '</span>';
+      }
       card.innerHTML =
         '<div class="work-icon" style="background:' + w.color + '">' + w.icon + '</div>' +
         '<div class="work-title">' + w.title + '</div>' +
         '<div class="work-type">' + w.type + '</div>' +
+        catChip +
         '<span class="work-badge">' + badge + '</span>';
       if (w.status === 'done') {
         card.onclick = function () { location.href = w.url; };
+      } else {
+        card.style.cursor = 'pointer';
+        card.onclick = function () {
+          var K = 'jiahong-wb-wishvote-v1';
+          var votes = {};
+          try { votes = JSON.parse(localStorage.getItem(K) || '{}'); } catch(e){}
+          votes[w.title] = (votes[w.title] || 0) + 1;
+          try { localStorage.setItem(K, JSON.stringify(votes)); } catch(e){}
+          var badge = card.querySelector('.work-badge');
+          if (badge) { badge.textContent = '🙋 已许愿 · 等排课'; badge.style.background = '#ffe8a3'; }
+          card.onclick = null;
+        };
       }
       shelf.appendChild(card);
     });
     loadInbox(save.owner);
+    renderGrowth();
+  }
+
+  function renderGrowth(){
+    var box = el('growth'), ttl = el('growth-title');
+    if(!box) return;
+    var save = loadSave();          // 原代码引用了 render() 的局部变量，作用域外 → 抛错 → 被空 catch 吞掉
+    if(!save) return;
+    var g = null, vers = [];
+    try {
+      var gr = JSON.parse(localStorage.getItem('jiahong-wb-growth-v1') || 'null');
+      if(gr && gr.owner === save.owner) g = gr;
+      var vr = JSON.parse(localStorage.getItem('jiahong-wb-versions-v1') || 'null');
+      if(vr && vr.owner === save.owner) vers = vr.list || [];
+    } catch(e){}
+    if(!g && !vers.length){ if(ttl) ttl.hidden = true; box.hidden = true; return; }
+    if(ttl) ttl.hidden = false;
+    box.hidden = false;
+    box.innerHTML = '';
+    var nums = [];
+    if(g){ nums.push('说出想法 ' + (g.sayCount||0) + ' 次'); nums.push('一次说清 ' + (g.oneShot||0) + ' 次'); nums.push('反复打磨 ' + (g.multiTurn||0) + ' 次'); nums.push('试错/撤销 ' + (g.undoCount||0) + ' 次'); nums.push('作品 ' + (g.versionCount||0) + ' 个'); }
+    var n1 = document.createElement('div'); n1.className = 'inbox-item';
+    var t1 = document.createElement('div'); t1.className = 'ii-text'; t1.textContent = '这些数字是孩子自己动手留下的脚印：' + (nums.join(' · ') || '还没有记录');
+    n1.appendChild(t1); box.appendChild(n1);
+    vers.slice(0, 3).forEach(function(v){
+      var row = document.createElement('div'); row.className = 'inbox-item';
+      var a = document.createElement('div'); a.className = 'ii-text'; a.textContent = '🎮 ' + v.name + (v.title ? '（' + v.title + '）' : '');
+      var b2 = document.createElement('div'); b2.className = 'ii-sub';
+      b2.textContent = v.why ? ('💬 孩子说：' + v.why) : '（这版还没写“孩子的话”）';
+      row.appendChild(a); row.appendChild(b2); box.appendChild(row);
+    });
   }
 
   function loadInbox(owner){

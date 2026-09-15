@@ -109,22 +109,30 @@
   function loadMods() {
     try { return JSON.parse(localStorage.getItem('jiahong-mods') || '{}'); } catch (e) { return {}; }
   }
-  function applyMods() {
-    mods = loadMods() || {};
+  function applyMods(overrideMods) {
+    // overrideMods：来自分享链接的数据（只影响本局，不落盘）
+    mods = (overrideMods && typeof overrideMods === 'object') ? overrideMods : (loadMods() || {});
     const p = S.params;
-    const num = (v) => (typeof v === "number" && isFinite(v) ? v : null);
-    if (num(mods.star_speed) != null) p.starSpeed = mods.star_speed;
-    if (num(mods.star_size) != null) p.starSize = mods.star_size;
-    if (num(mods.spawn_interval) != null) p.spawnInterval = mods.spawn_interval;
-    if (num(mods.gold_chance) != null) p.goldChance = mods.gold_chance;
-    if (num(mods.bomb_chance) != null) p.bombChance = mods.bomb_chance;
-    if (num(mods.catcher_scale) != null) p.catcherScale = mods.catcher_scale;
-    if (num(mods.extra_life) != null) S.extraLivesMod = mods.extra_life;
+    // 与服务端 MOD_RULES 对齐：分享链接是公开的，数值必须落在同一区间内
+    const RANGE = {
+      star_speed:[0.8,6], star_size:[14,48], spawn_interval:[300,2000],
+      gold_chance:[0,0.5], bomb_chance:[0,0.3], catcher_scale:[0.8,2],
+      extra_life:[0,3], duration:[10,600],
+    };
+    const rng = (k, v) => { const n = Number(v); return isFinite(n) ? Math.max(RANGE[k][0], Math.min(RANGE[k][1], n)) : null; };
+    let v;
+    v = rng('star_speed', mods.star_speed);      if (v != null) p.starSpeed = v;
+    v = rng('star_size', mods.star_size);        if (v != null) p.starSize = v;
+    v = rng('spawn_interval', mods.spawn_interval); if (v != null) p.spawnInterval = v;
+    v = rng('gold_chance', mods.gold_chance);    if (v != null) p.goldChance = v;
+    v = rng('bomb_chance', mods.bomb_chance);    if (v != null) p.bombChance = v;
+    v = rng('catcher_scale', mods.catcher_scale); if (v != null) p.catcherScale = v;
+    v = rng('extra_life', mods.extra_life);      if (v != null) S.extraLivesMod = v;
     if (mods.magnet === true) S.magnetMod = true;
-    if (typeof mods.title === 'string' && mods.title.trim()) S.titleMod = mods.title.trim();
+    if (typeof mods.title === 'string' && mods.title.trim()) S.titleMod = mods.title.trim().slice(0, 16);
     loadPatch();
-    const durN = num(mods.duration);
-    S.dur = (durN != null ? Math.max(10, Math.min(600, durN)) : 60);
+    v = rng('duration', mods.duration);
+    S.dur = (v != null ? v : 60);
     S.scriptCode = (typeof mods.script === 'string') ? mods.script : '';
   }
 
@@ -173,17 +181,25 @@
     let versionData = null;
     try {
       const q = new URLSearchParams(location.search);
-      const v = q.get('v');
-      if (v) versionData = await inflateObj(v);
+      const s = q.get('s');
+      if (s) {
+        const r = await fetch('/api/s/' + encodeURIComponent(s));
+        const j = await r.json();
+        if (j && j.ok && j.payload) versionData = j.payload;
+      } else {
+        const v = q.get('v');
+        if (v) versionData = await inflateObj(v);
+      }
     } catch (e) { versionData = null; }
-    if (versionData && versionData.m && typeof versionData.m === 'object') {
-      try { localStorage.setItem('jiahong-mods', JSON.stringify(versionData.m)); } catch (e) {}
-    }
-    applyMods();
+    // 分享来的版本只在这一次游戏里生效（内存），绝不写进本地存档——
+    // 否则孩子点开同学的作品，自己的作品就被覆盖了。
+    var shareMods = (versionData && versionData.m && typeof versionData.m === 'object') ? versionData.m : null;
+    applyMods(shareMods);
     S.cameFromShare = !!(versionData && versionData.m);
     if (S.cameFromShare) {
       S.shareOwner = (versionData && versionData.o) || '';
       S.shareVersion = (versionData && versionData.n) || '';
+      S.shareWhy = (versionData && versionData.w) || '';
     }
 
     if (!S.save) {
@@ -283,7 +299,17 @@
       R: '💚 稀有英雄出战！',
       N: '💙 勇气可嘉的小英雄出战！',
     };
-    $('mask-tip').textContent = (tips[S.hero.rarity] || tips.N) + '\n⏱ 本局限时 ' + S.dur + ' 秒，时间到自动结算';
+    $('mask-tip').textContent = tips[S.hero.rarity] || tips.N;
+    var ptEl = $('pill-time');
+    if (ptEl) ptEl.textContent = '⏱ 本局 ' + S.dur + ' 秒 · 时间到自动结算';
+    var cqEl = $('creator-quote');
+    if (cqEl) {
+      if (S.shareWhy) {
+        $('cq-name').textContent = (S.shareOwner ? S.shareOwner : '做这版的人') + ' 说';
+        $('cq-text').textContent = '「' + S.shareWhy + '」';
+        cqEl.hidden = false;
+      } else { cqEl.hidden = true; }
+    }
   }
 
   function bindGlobal() {
@@ -303,7 +329,7 @@
   const W = cv.width, H = cv.height;
   let stars = [], particles = [], projectiles = [], catcherX = W / 2, keys = {};
   let patch = null, patchTimers = [], shotCool = 0;
-  let scriptTimers = [], scriptOnFrame = [], scriptErr = null;
+  let scriptTimers = [], scriptOnFrame = [], scriptErr = null, scriptLoadFailed = false;
   let scriptCatchHooks = [], scriptHurtHooks = [];
   let lastSpawn = 0, rafId = null, frame = 0;
 
@@ -322,7 +348,7 @@
     }) : [];
     $('mask-start').hidden = true;
     $('mask-over').hidden = true;
-    scriptTimers = []; scriptOnFrame = []; scriptCatchHooks = []; scriptHurtHooks = []; scriptErr = null;
+    scriptTimers = []; scriptOnFrame = []; scriptCatchHooks = []; scriptHurtHooks = []; scriptErr = null; scriptLoadFailed = false;
     setupScript(S.scriptCode);
     lastSpawn = performance.now();
     S.startAt = performance.now();
@@ -435,6 +461,10 @@
     for (let i = 0; i < SCRIPT_BANNED.length; i++) {
       if (code.indexOf(SCRIPT_BANNED[i]) >= 0) { scriptErr = '脚本含不允许的操作，已停用'; return; }
     }
+    // 同步执行的死循环无法中断，先做静态防呆
+    if (/\bwhile\s*\(\s*(true|1)\s*\)/.test(code) || /\bfor\s*\(\s*;\s*;\s*\)/.test(code)) {
+      scriptErr = '脚本里有个停不下来的循环，已停用'; return;
+    }
     const api = {
       every: function (ms, fn) { scriptTimers.push({ ms: Math.max(200, Math.min(60000, Number(ms) || 1000)), next: 0, fn: fn }); },
       onFrame: function (fn) { scriptOnFrame.push(fn); },
@@ -452,7 +482,7 @@
     try {
       const fn = new Function('R', '"use strict";\n' + code);
       fn(api);
-    } catch (e) { scriptErr = String((e && e.message) || e); }
+    } catch (e) { scriptErr = String((e && e.message) || e); scriptLoadFailed = true; }
   }
   function runCatchHooks(kind){
     if (!S.running) return;
@@ -468,7 +498,7 @@
   }
 
   function runScripts(now){
-    if (scriptErr || !S.running) return;
+    if (scriptLoadFailed || !S.running) return;
     for (let i = 0; i < scriptTimers.length; i++) {
       const t = scriptTimers[i];
       if (now >= t.next) {
@@ -476,7 +506,7 @@
         t.next = now + t.ms;
       }
     }
-    if (scriptErr) return;
+    if (scriptLoadFailed) return;
     for (let i = 0; i < scriptOnFrame.length; i++) {
       try { scriptOnFrame[i](); } catch (e) { scriptErr = String((e && e.message) || e); break; }
     }
@@ -750,6 +780,17 @@
     if (!suggestBound) {
       suggestBound = true;
       $('btn-suggest').addEventListener('click', submitSuggest);
+      var chips = document.querySelectorAll('#suggest-chips .chip');
+      for (var ci = 0; ci < chips.length; ci++) {
+        (function (ch) {
+          ch.addEventListener('click', function () {
+            var ta = $('suggest-text');
+            ta.value = ch.getAttribute('data-starter') || '';
+            ta.focus();
+            if (ta.setSelectionRange) { var n = ta.value.length; ta.setSelectionRange(n, n); }
+          });
+        })(chips[ci]);
+      }
     }
   }
   function submitSuggest(){

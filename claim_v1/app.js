@@ -10,10 +10,10 @@
   const NAME_A = ['小', '阿', '星', '云', '月', '风', '糖', '米'];
   const NAME_B = ['朗', '羽', '辰', '宝', '豆', '乐', '阳', '灵', '可', '果'];
   const MILESTONES = [
-    { p: 100,  icon: '🎟️', label: '换蛋券 ×1（免费再抽一次）' },
-    { p: 500,  icon: '👑', label: '皇冠配饰（印在档案卡上）' },
-    { p: 1000, icon: '★',  label: '金边档案 + 专属称号' },
-    { p: 2000, icon: '🎰', label: '双蛋券 ×1（一次抽俩选一个）' },
+    { p: 60,  icon: '🎟️', label: '换蛋券 ×1（免费再抽一次）' },
+    { p: 120, icon: '👑', label: '皇冠配饰（印在档案卡上）' },
+    { p: 180, icon: '★',  label: '金边档案 + 专属称号' },
+    { p: 240, icon: '🎰', label: '双蛋券 ×1（一次抽俩选一个）' },
   ];
 
   const state = {
@@ -450,29 +450,32 @@
     const fb = document.getElementById('code-fb');
     const code = input.value.trim();
     if (!code) return;
-    const table = window.TEACHER_CODES || {};
-    if (state.usedCodes.includes(code)) {
-      fb.textContent = '这个口令已经用过啦';
-      fb.className = 'code-fb bad';
-      Sound.error();
-      return;
-    }
-    if (!(code in table)) {
-      fb.textContent = '口令不对，再问问老师～';
-      fb.className = 'code-fb bad';
-      Sound.error();
-      return;
-    }
-    state.usedCodes.push(code);
-    state.points += table[code];
-    fb.textContent = '🎉 口令正确！+' + table[code] + ' 分';
-    fb.className = 'code-fb ok';
-    input.value = '';
-    Sound.coin();
-    checkMilestones();
-    saveAll();
-    refreshPoints();
-    renderArchive();
+    if (!state.owner) { fb.textContent = '先填好你的代号，再找老师要口令哦'; fb.className = 'code-fb bad'; return; }
+    fetch('/api/redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner: state.owner, code: code }) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res.ok) {
+          state.usedCodes.push(code);
+          state.points += (res.points || 0);
+          fb.textContent = '🎉 口令正确！+' + res.points + ' 分';
+          fb.className = 'code-fb ok';
+          input.value = '';
+          Sound.coin();
+          checkMilestones();
+          saveAll();
+          refreshPoints();
+          renderArchive();
+        } else if (res.error === 'used') {
+          fb.textContent = '这个口令已经用过啦';
+          fb.className = 'code-fb bad';
+          Sound.error();
+        } else {
+          fb.textContent = '口令不对，再问问老师～';
+          fb.className = 'code-fb bad';
+          Sound.error();
+        }
+      })
+      .catch(function(){ fb.textContent = '没连上，先找老师确认口令～'; fb.className = 'code-fb bad'; Sound.error(); });
   }
 
   // ============= 档案视图 =============
@@ -526,7 +529,7 @@
   function refreshPoints() {
     document.querySelectorAll('.topbar-points').forEach(el => { el.textContent = '⭐ ' + state.points; });
     const fill = document.getElementById('points-fill');
-    if (fill) fill.style.width = Math.min(state.points / 2000 * 100, 100) + '%';
+    if (fill) fill.style.width = Math.min(state.points / 240 * 100, 100) + '%';
     document.querySelectorAll('.tick').forEach(t => {
       const p = parseInt(t.dataset.p, 10);
       t.style.left = (p / 2000 * 100) + '%';
@@ -907,6 +910,7 @@
     document.getElementById('btn-go-archive').addEventListener('click', () => {
       const res = state.gachaResult;
       const rar = visualRarity(res);
+      const isDup = state.owned.some(function(o){ return o.id === res.char.id; });
       state.owned.push({
         id: res.char.id,
         name: state.characterName,
@@ -918,6 +922,7 @@
         message: state.message,
         ts: Date.now(),
       });
+      if (isDup) { state.points += 60; }
       saveAll();
       Sound.milestone();
       spawnParticles(getRarityColor(rar), 26);

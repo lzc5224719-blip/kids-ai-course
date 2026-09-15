@@ -10,6 +10,14 @@
   .suggest-sub{font-size:13px;color:#6B6B6B;line-height:1.6;margin-bottom:10px;}
   #suggest-text{width:100%;box-sizing:border-box;border:1.5px solid #DCD6F2;border-radius:12px;padding:10px 12px;font-size:15px;font-family:inherit;resize:none;margin-bottom:10px;}
   .suggest-fb{font-size:13px;margin-top:8px;min-height:18px;}
+  .suggest-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .suggest-chips .chip{border:1.5px solid #DCD6F2;background:#fff;color:#5B4B9E;font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;cursor:pointer;transition:transform .1s, background .1s;}
+  .suggest-chips .chip:active{transform:scale(.96);}
+  .mask-meta{margin:4px 0 8px;}
+  .pill-time{display:inline-block;background:rgba(255,255,255,.85);color:#C0392B;font-size:13px;font-weight:600;border-radius:999px;padding:4px 12px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .creator-quote{margin:10px auto 4px;max-width:92%;background:linear-gradient(135deg,#FFF3DD,#FDEAF3);border-radius:16px;padding:10px 14px;text-align:left;box-shadow:0 4px 14px rgba(239,159,39,.15);}
+  .cq-name{font-size:12px;font-weight:600;color:#B7791F;margin-bottom:2px;}
+  .cq-text{font-size:15px;color:#5B4632;line-height:1.6;word-break:break-word;}
   </style>
 </head>
 <body>
@@ -54,6 +62,11 @@
         <div class="mask-hero"><img id="mask-hero-img" alt=""></div>
         <div class="mask-rarity" id="mask-rarity"></div>
         <div class="mask-tip" id="mask-tip"></div>
+        <div class="mask-meta"><span class="pill-time" id="pill-time"></span></div>
+        <div class="creator-quote" id="creator-quote" hidden>
+          <div class="cq-name" id="cq-name"></div>
+          <div class="cq-text" id="cq-text"></div>
+        </div>
         <button class="btn btn-primary btn-xl" id="btn-start">🎮 开始游戏</button>
         <div class="mask-help">移动鼠标 / 手指 / 方向键 控制角色接星星</div>
       </div>
@@ -71,6 +84,12 @@
     <div class="panel suggest-panel" id="suggest-panel" hidden>
       <div class="panel-title">💡 给做游戏的人提个建议</div>
       <div class="suggest-sub" id="suggest-sub"></div>
+      <div class="suggest-chips" id="suggest-chips">
+        <button type="button" class="chip" data-starter="我觉得有点太难了，卡在：">😵 有点太难</button>
+        <button type="button" class="chip" data-starter="我觉得有点太简单，想更刺激一点：">😴 有点太简单</button>
+        <button type="button" class="chip" data-starter="我想加一个新东西：">✨ 想加新东西</button>
+        <button type="button" class="chip" data-starter="">✍️ 我自己写</button>
+      </div>
       <textarea id="suggest-text" rows="2" maxlength="120" placeholder="哪里最好玩？哪里可以更好？想到什么写什么～"></textarea>
       <button class="btn btn-primary" id="btn-suggest">✉️ 发给他</button>
       <div class="suggest-fb" id="suggest-fb"></div>

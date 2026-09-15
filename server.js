@@ -43,10 +43,71 @@ const MIME = {
 };
 
 // ---------- 建议箱（裂变：游客给创作者的游戏提建议） ----------
-const DATA_DIR = path.join(ROOT, '.wb-data');
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, '.wb-data');
 const SUGGEST_FILE = path.join(DATA_DIR, 'suggestions.json');
 function readSuggestions(){ try { return JSON.parse(fs.readFileSync(SUGGEST_FILE, 'utf8')); } catch (e) { return []; } }
 function writeSuggestions(list){ try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(SUGGEST_FILE, JSON.stringify(list, null, 2)); } catch (e) {} }
+
+// ---------- 作品分享短码（服务端持久化，把 800+ 字符长链接压成 6 位短码） ----------
+const SHARE_FILE = path.join(DATA_DIR, 'shares.json');
+function readShares(){ try { return JSON.parse(fs.readFileSync(SHARE_FILE, 'utf8')); } catch (e) { return {}; } }
+function writeShares(o){ try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(SHARE_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+function randCode(){ const A = 'abcdefghijkmnpqrstuvwxyz23456789'; let s = ''; for (let i = 0; i < 6; i++) s += A[Math.floor(Math.random() * A.length)]; return s; }
+
+// ---------- 老师口令（服务端，孩子看不到明文；可在 teacher-codes.json 或环境变量 TEACHER_CODES_JSON 里改） ----------
+let teacherCodes = { '星河': 1, '萤火虫': 2, '彩虹桥': 5, '大力神': 10 };
+if (process.env.TEACHER_CODES_JSON) {
+  try { teacherCodes = JSON.parse(process.env.TEACHER_CODES_JSON); } catch (e) {}
+} else {
+  try { teacherCodes = JSON.parse(fs.readFileSync(path.join(ROOT, 'teacher-codes.json'), 'utf8')); } catch (e) {}
+}
+const REDEEM_FILE = path.join(DATA_DIR, 'redeemed.json');
+function readRedeemed(){ try { return JSON.parse(fs.readFileSync(REDEEM_FILE, 'utf8')); } catch (e) { return {}; } }
+function writeRedeemed(o){ try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(REDEEM_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+
+// 分享数据裁剪：分享链接是公开传播的，只保留已知字段，数值与 MOD_RULES 同区间
+function clipSharePayload(p){
+  if (!p || typeof p !== 'object') return null;
+  const m = (p.m && typeof p.m === 'object') ? p.m : {};
+  const outM = {};
+  Object.keys(MOD_RULES).forEach(k => {
+    if (m[k] === undefined) return;
+    const rule = MOD_RULES[k];
+    if (rule.type === 'boolean') { if (m[k] === true) outM[k] = true; return; }
+    if (rule.type === 'string') { outM[k] = String(m[k]).slice(0, rule.max || 16); return; }
+    const n = Number(m[k]);
+    if (!isFinite(n)) return;
+    outM[k] = Math.max(rule.min, Math.min(rule.max, n));
+  });
+  if (m.patch && typeof m.patch === 'object') {
+    const es = Array.isArray(m.patch.entities) ? m.patch.entities.map(sanitizeEntity).filter(Boolean).slice(0, 12) : [];
+    outM.patch = { entities: es, attack: !!m.patch.attack };
+  }
+  if (typeof m.script === 'string') { const s = sanitizeScript(m.script); if (s) outM.script = s; }
+  return {
+    n: String(p.n || '').slice(0, 24),
+    o: String(p.o || '').slice(0, 20),
+    w: String(p.w || '').slice(0, 60),
+    h: (p.h && typeof p.h === 'object') ? {
+      name: String(p.h.name || '').slice(0, 20),
+      originalName: String(p.h.originalName || '').slice(0, 20),
+      rarity: ['N','R','SR','SSR'].includes(p.h.rarity) ? p.h.rarity : 'N',
+      img: String(p.h.img || '').slice(0, 120),
+    } : null,
+    m: outM,
+  };
+}
+
+// 极简内存限流（同一 key 每 60 秒最多 6 次）
+const rateHits = new Map();
+function rateAllowed(key, max, windowMs){
+  const now = Date.now();
+  const arr = (rateHits.get(key) || []).filter(t => now - t < (windowMs || 60000));
+  if (arr.length >= (max || 6)) { rateHits.set(key, arr); return false; }
+  arr.push(now); rateHits.set(key, arr);
+  if (rateHits.size > 1000) { for (const [k] of rateHits) { rateHits.delete(k); if (rateHits.size <= 500) break; } }
+  return true;
+}
 
 // ---------- 允许的改动键与值范围（校验 AI 输出，防止改坏游戏） ----------
 const MOD_RULES = {
@@ -124,6 +185,7 @@ function buildSystem(hero, owner) {
     '提问：{"action":"ask","reply":"<用孩子听得懂的大白话问一个最关键的问题>","options":["<选项1>","<选项2>","<选项3>"]}',
     '改游戏：{"action":"modify","reply":"<用一句话、带点兴奋地告诉孩子你改了什么>","summary":"<改动简短名字，8字以内>","changes":[{"key":"<键>","value":<值>}],"patch":{...}}（changes 和 patch 至少给一个：只调数字给 changes，加新东西/攻击/道具给 patch）',
     '愿望：{"action":"wish","reply":"<热情肯定孩子，并说：我把它写进我们的愿望单啦，下次课我们一起把它做出来！>","note":"<用一句话记清孩子想要的功能>","options":["<现在就能试的方向1>","<方向2>"]}',
+    '如果孩子这一句话里同时说了几件不同的事，就在 JSON 里额外加一个数字字段 "heardCount"（等于你能听懂的事有几件，1~5）。只提一件事时可以省略。',
     '',
     '可用的改动键（key）和值的范围：',
     '- star_speed：星星下落速度，数字，默认 2.2。1.4=明显变慢 1.8=稍慢 2.2=正常 3=快 4=很快（孩子说慢一点就取 1.4~1.8，说快一点就取 2.8~3.5）',
@@ -143,7 +205,7 @@ function buildSystem(hero, owner) {
     '实体字段：id=简短英文；kind="good"(接到加分)|"gold"(金色大分)|"bad"(坏蛋，碰到扣命)|"power"(吃到给道具)；shape="text"；text=一个 emoji 或字（如 👾🛡🐉💎）；size=14~60；speed=0.5~9；interval=500~9000（每隔多少毫秒来一个）；score=0~300（接到/打掉加的分）；side="top"(正上方掉)|"sine"(蛇形掉)|"left"/"right"(从左右飞过)；targetable=true 表示能被光弹打掉；kind=power 时要带 power="magnet|shield|double|life|invincible|wide"。',
     '例子1：孩子要“会飞的怪兽，我要打它”→ patch={attack:true,entities:[{id:"monster",kind:"bad",shape:"text",text:"👾",size:34,speed:1.6,interval:1200,score:20,targetable:true,side:"top"}]}',
     '例子2：孩子要“掉护盾/双倍分道具”→ entities 加 {kind:"power",power:"shield",shape:"text",text:"🛡",side:"top"} 或 power:"double"。',
-    '一次只实现孩子当前说的一个点，别一口气塞一堆；孩子没提的不要自作主张加。',
+    '一次只动手做孩子当前说的一个点。但孩子一条话里如果说了好几件事，必须【逐条回应】：能做的动手做，这次做不了的也要明确说一句「这件事我这次先记进愿望单」——绝不允许只做第一件、其余的一个字不提。孩子没提的不要自作主张加。',
     '',
     '',
     '【玩法脚本 script（更自由：计时/条件/事件，超出 patch 时用）】',
@@ -158,7 +220,7 @@ function buildSystem(hero, owner) {
     '规则：',
     '- 一次只输出 1 个改动（changes 数组通常只放 1 个元素）。',
     '- 值必须在给定范围内，不要超出。',
-    '- 孩子的任何想法都【永远不许说「做不了、我还在学、不能、不行、还没有」】——那会浇灭孩子的热情。',
+    '- 永远不许说「做不了、不能、不行、还没有」。孩子想要的东西这次真做不出来时，必须用这四种方式承接下来，绝不能装作没听见：①先夸这个想法 ②当场做一个最接近的样子 ③请他再具体说一点 ④记进愿望单并说「我把它记下来，等排进课表我们一起做」。',
     '- 先用 patch 把孩子的想法真正做出来：他说「怪兽/会飞的坏蛋/我要打它」→ patch 加 kind="bad" 的 👾 实体并 targetable:true、attack:true；说「掉护盾/双倍分道具」→ 加 kind="power" 实体；说「限时/倒计时」→ changes 给 duration。能当场做的就当场做，别劝他换别的。',
     '- 孩子说「被炸到/碰到坏蛋屏幕会变红/全屏泛红」：这是游戏自带的受伤反馈——只要加了炸弹星或坏蛋，被炸到就会全屏泛红，不用也不能额外设置；直接加炸弹（bomb_chance 或 💣 坏蛋实体）即可。',
     '- 孩子说清后就直接动手输出 modify/patch，不要反复追问；最多问 2 个小问题，问完必须做；能直接做就直接做。',
@@ -245,13 +307,18 @@ function sanitizePatch(p){
   return { attack, entities };
 }
 
+function cleanHeard(v){ const n = Number(v); return (Number.isInteger(n) && n >= 1 && n <= 5) ? n : null; }
 function sanitizeResult(raw) {
   if (!raw) return { action: 'ask', reply: '我好像没听懂，你能再说一遍吗？比如「我想加个磁铁」。' };
   if (raw.action === 'ask') {
-    return { action: 'ask', reply: String(raw.reply || '你能再说清楚一点吗？'), options: cleanOptions(raw.options) };
+    const out = { action: 'ask', reply: String(raw.reply || '你能再说清楚一点吗？'), options: cleanOptions(raw.options) };
+    const h = cleanHeard(raw.heardCount); if (h) out.heardCount = h;
+    return out;
   }
   if (raw.action === 'wish') {
-    return { action: 'wish', reply: String(raw.reply || '这个想法太酷了！我把它写进愿望单，下次课我们一起做出来！'), note: String(raw.note || '').slice(0, 120), options: cleanOptions(raw.options) };
+    const out = { action: 'wish', reply: String(raw.reply || '这个想法太酷了！我把它写进愿望单，下次课我们一起做出来！'), note: String(raw.note || '').slice(0, 120), options: cleanOptions(raw.options) };
+    const h = cleanHeard(raw.heardCount); if (h) out.heardCount = h;
+    return out;
   }
   if (raw.action === 'modify') {
     const changes = [];
@@ -285,6 +352,7 @@ function sanitizeResult(raw) {
     };
     if (patch) out.patch = patch;
     if (script) out.script = script;
+    const h = cleanHeard(raw.heardCount); if (h) out.heardCount = h;
     return out;
   }
   return { action: 'ask', reply: '我好像没听懂，你能再说一遍吗？' };
@@ -297,10 +365,12 @@ function mockChat(lastText) {
     { kw: ['磁铁', '吸'], out: { action: 'modify', reply: '好嘞！我给游戏装上了磁铁，星星会自己飞过来啦！', summary: '磁铁吸附', changes: [{ key: 'magnet', value: true }] } },
     { kw: ['加命', '多一条命', '加一条命', '加生命', '复活', '再来一条命'], out: { action: 'modify', reply: '给你多加了一条命，就多一次机会！', summary: '勇气+1', changes: [{ key: 'extra_life', value: 1 }] } },
     { kw: ['慢', '太慢', '慢点', '慢一点'], out: { action: 'modify', reply: '放慢了星星，先练练手，接起来不慌！', summary: '星星减速', changes: [{ key: 'star_speed', value: 1.4 }] } },
+    { kw: ['太快了', '太快', '好快'], out: { action: 'modify', reply: '明白，太快了接不住——我把星星放慢一点！', summary: '星星减速', changes: [{ key: 'star_speed', value: 1.4 }] } },
     { kw: ['快', '更快', '快一点'], out: { action: 'modify', reply: '星星下落加速啦，考验手速的时候到了！', summary: '星星加速', changes: [{ key: 'star_speed', value: 3.2 }] } },
     { kw: ['变大', '大一点', '星星大'], out: { action: 'modify', reply: '把星星变大了，更好接啦！', summary: '星星变大', changes: [{ key: 'star_size', value: 34 }] } },
     { kw: ['变小', '小一点', '星星小'], out: { action: 'modify', reply: '把星星变小了，挑战升级！', summary: '星星变小', changes: [{ key: 'star_size', value: 20 }] } },
     { kw: ['金星', '金色', '黄金', '金星星'], out: { action: 'modify', reply: '金星星变多了，一颗就 50 分，冲呀！', summary: '金星暴击', changes: [{ key: 'gold_chance', value: 0.2 }] } },
+    { kw: ['不要炸弹', '别掉炸弹', '别加炸弹', '不要坏蛋', '别来炸弹'], out: { action: 'modify', reply: '好，咱们先不放炸弹，安心接星星！', summary: '去掉炸弹', changes: [{ key: 'bomb_chance', value: 0 }] } },
     { kw: ['炸弹', '爆炸'], out: { action: 'modify', reply: '天上开始掉炸弹星了，可千万别接它！', summary: '炸弹来袭', changes: [{ key: 'bomb_chance', value: 0.12 }] } },
     { kw: ['标题', '名字', '改名', '换个名'], out: { action: 'modify', reply: '给你的游戏换了个响亮的新名字！', summary: '换个名字', changes: [{ key: 'title', value: '我的大冒险' }] } },
     { kw: ['简单', '容易', '太难', '好难'], out: { action: 'modify', reply: '让它变简单点——星星更慢、角色接得更宽！', summary: '轻松模式', changes: [{ key: 'star_speed', value: 1.4 }] } },
@@ -375,9 +445,8 @@ async function handleChat(res, body) {
     const out = sanitizeResult(extractJSON(content));
     return sendJSON(res, 200, out);
   } catch (e) {
-    // 出错时降级到演示模式，保证课堂不卡死
-    const out = sanitizeResult(mockChat(lastText));
-    return sendJSON(res, 200, { ...out, mock: true, fallback: true, note: String(e.message || e) });
+    // 有 key 但真 AI 掉线：宁可不改，也绝不让本地引擎把"太快了"反着执行成"更快"。
+    return sendJSON(res, 200, { action: 'ask', reply: '哎呀，我这边信号抖了一下，刚才没听清。你再跟我说一遍好吗？', fallback: true, note: String(e.message || e) });
   }
 }
 
@@ -390,6 +459,10 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       let body = {};
       try { body = JSON.parse(data || '{}'); } catch (e) { return sendJSON(res, 400, { error: 'bad json' }); }
+      const ipKey = 'chat:' + (req.socket.remoteAddress || 'x');
+      if (!rateAllowed(ipKey, 12, 60000)) {
+        return sendJSON(res, 200, { action: 'ask', reply: '哎呀，我这边有点忙，稍等一下再跟我说好吗？', fallback: true, note: 'rate limited' });
+      }
       handleChat(res, body);
     });
     return;
@@ -410,6 +483,7 @@ const server = http.createServer((req, res) => {
       const version = String(body.version || '').trim().slice(0, 30);
       const text = String(body.text || '').trim().slice(0, 200);
       if (!owner || !text) return sendJSON(res, 200, { ok: false, error: '缺少内容' });
+      if (!rateAllowed('sg:' + owner, 6, 60000)) return sendJSON(res, 200, { ok: false, error: '太频繁啦，过一会儿再试' });
       const list = readSuggestions();
       list.push({ ts: Date.now(), owner: owner, hero: hero, version: version, text: text });
       writeSuggestions(list);
@@ -418,6 +492,56 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.method === 'POST' && u.pathname === '/api/share') {
+    let b = '';
+    req.on('data', c => { b += c; if (b.length > 2e6) req.destroy(); });
+    req.on('end', () => {
+      let body = {};
+      try { body = JSON.parse(b || '{}'); } catch (e) { return sendJSON(res, 400, { ok: false, error: 'bad json' }); }
+      const payload = body.payload;
+      if (!payload || typeof payload !== 'object') return sendJSON(res, 200, { ok: false, error: 'empty' });
+      const clipped = clipSharePayload(payload);
+      if (!clipped) return sendJSON(res, 200, { ok: false, error: 'bad payload' });
+      const shares = readShares();
+      let code = randCode();
+      while (shares[code]) code = randCode();
+      shares[code] = { ts: Date.now(), payload: clipped };
+      const keys = Object.keys(shares);
+      if (keys.length > 500) {
+        keys.sort(function(a, b){ return (shares[a].ts || 0) - (shares[b].ts || 0); }).slice(0, keys.length - 500).forEach(function(k){ delete shares[k]; });
+      }
+      writeShares(shares);
+      return sendJSON(res, 200, { ok: true, code: code });
+    });
+    return;
+  }
+  if (req.method === 'GET' && u.pathname.indexOf('/api/s/') === 0) {
+    const code = decodeURIComponent(u.pathname.slice('/api/s/'.length));
+    const hit = readShares()[code];
+    if (!hit || !hit.payload) return sendJSON(res, 200, { ok: false, error: 'not found' });
+    return sendJSON(res, 200, { ok: true, payload: hit.payload });
+  }
+  if (req.method === 'POST' && u.pathname === '/api/redeem') {
+    let b = '';
+    req.on('data', c => { b += c; if (b.length > 1e4) req.destroy(); });
+    req.on('end', () => {
+      let body = {};
+      try { body = JSON.parse(b || '{}'); } catch (e) { return sendJSON(res, 400, { ok:false, error:'bad json' }); }
+      const owner = String(body.owner || '').trim().slice(0, 20);
+      const code = String(body.code || '').trim().slice(0, 20);
+      if (!owner || !code) return sendJSON(res, 200, { ok:false, error:'empty' });
+      const pts = teacherCodes[code];
+      if (pts === undefined) return sendJSON(res, 200, { ok:false, error:'bad code' });
+      const redeemed = readRedeemed();
+      const list = Array.isArray(redeemed[owner]) ? redeemed[owner] : [];
+      if (list.indexOf(code) >= 0) return sendJSON(res, 200, { ok:false, error:'used' });
+      list.push(code);
+      redeemed[owner] = list;
+      writeRedeemed(redeemed);
+      return sendJSON(res, 200, { ok:true, points: pts });
+    });
+    return;
+  }
   if (req.method === 'GET' && u.pathname === '/api/health') {
     return sendJSON(res, 200, { ok: true, mock: MOCK_MODE, model: MODEL });
   }

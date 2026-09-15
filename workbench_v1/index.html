@@ -65,7 +65,9 @@
   .change-card{background:#FFF7EA;border:2px solid var(--orange);border-radius:16px;padding:14px 16px;box-shadow:0 6px 18px rgba(239,159,39,.18);}
   .change-card .cc-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
   .change-card .cc-head b{font-size:16px;color:var(--orange-d);}
-  .change-card .cc-summary{font-size:14px;color:var(--ink);margin-bottom:12px;}
+  .change-card .cc-summary{font-size:14px;color:var(--ink);margin-bottom:8px;}
+  .change-card .cc-receipt{font-size:12.5px;color:#8A6D3B;background:#FBF1DC;border:1px dashed #E7D2A8;border-radius:10px;padding:7px 10px;margin-bottom:12px;line-height:1.6;}
+  .change-card .cc-heard{font-size:12px;color:#5B4B9E;margin:-6px 0 10px;}
   .change-card .cc-actions{display:flex;gap:10px;}
   .btn-apply{flex:1;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--orange),var(--pink));cursor:pointer;box-shadow:0 5px 14px rgba(213,83,126,.28);}
   .btn-play{flex:1;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;color:var(--purple);background:#fff;border:1.5px solid var(--purple);cursor:pointer;text-align:center;text-decoration:none;}
@@ -110,12 +112,16 @@
   .modal .sub{font-size:13px;color:var(--sub);margin-bottom:12px;}
   .ver-input{width:100%;border:1.5px solid #E3DFF2;border-radius:10px;padding:10px 12px;font-size:15px;margin-bottom:12px;box-sizing:border-box;}
   .ver-actions{display:flex;gap:10px;}
+  .qr-wrap{margin:10px 0 4px;text-align:center;}
+  .qr-img{width:180px;height:180px;border-radius:12px;border:1.5px solid #EFEAF7;background:#fff;}
+  .qr-hint{font-size:12px;color:var(--sub);margin-top:6px;}
   .ver-primary{flex:1;border:none;border-radius:12px;padding:12px;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--purple),var(--pink));cursor:pointer;}
   .ver-ghost{flex:1;border:1.5px solid #E3DFF2;border-radius:12px;padding:11px;font-size:14px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer;}
   .ver-item{display:flex;align-items:center;gap:8px;border:1.5px solid #EFEFF2;border-radius:12px;padding:9px 10px;margin-bottom:8px;}
   .ver-item .vi-info{flex:1;min-width:0;}
   .ver-item .vi-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ver-item .vi-sub{font-size:12px;color:var(--sub);}
+  .ver-item .vi-why{font-size:13px;color:#6D5BD0;margin-top:3px;line-height:1.4;}
   .vi-btn{border:none;border-radius:9px;padding:6px 8px;font-size:12px;font-weight:600;cursor:pointer;background:#F0EDFB;color:var(--purple);white-space:nowrap;}
   .vi-btn.play{background:var(--teal);color:#fff;}
   .vi-btn.del{background:#FDEBEA;color:#C0392B;}
@@ -194,6 +200,7 @@
 
 </div>
 
+<script src="qrcode.min.js"></script>
 <script>
 (function () {
   'use strict';
@@ -203,6 +210,10 @@
   var EARN_KEY = 'jiahong-wb-earn';
   var WISH_KEY = 'jiahong-wb-wishlist-v1';
   var VERSIONS_KEY = 'jiahong-wb-versions-v1';
+  var GROWTH_KEY = 'jiahong-wb-growth-v1';
+  var PARENT_KEY = 'jiahong-wb-parent-v1';
+  var CHATLOG_KEY = 'jiahong-wb-chatlog-v1';
+  var SESSION_OWNER_KEY = 'jiahong-wb-session-owner';
   var CLAIM_BASE = '/claim_v1/';
   var MAKE_POINTS = 10;
   var MAX_EARN_DAY = 3;
@@ -375,13 +386,45 @@
       var b = document.createElement('button');
       b.className = 'opt';
       b.textContent = o;
-      b.addEventListener('click', function(){ sendText(o); });
+      b.addEventListener('click', function(){ sendText(o, 'option'); });
       row.appendChild(b);
     });
     el('chat').appendChild(row);
     el('chat').scrollTop = el('chat').scrollHeight;
   }
-  function addChangeCard(reply, summary, changes, patch, script){
+  var MOD_DEFS = { star_speed:2.2, star_size:26, spawn_interval:900, gold_chance:0.08, bomb_chance:0, magnet:false, extra_life:0, catcher_scale:1, title:'', duration:60 };
+  function n2(v){ if (v === null || v === undefined || v === '') return '默认'; var n = Number(v); return isNaN(n) ? String(v) : (Math.round(n*100)/100); }
+  function receiptText(changes, patch, script){
+    var parts = [];
+    var cur = loadMods();
+    (changes || []).forEach(function(c){
+      if (!c || c.key === undefined) return;
+      var oldV = (cur && cur[c.key] !== undefined) ? cur[c.key] : MOD_DEFS[c.key];
+      var nv = c.value;
+      if (c.key === 'star_speed') { parts.push('星星速度 ' + n2(oldV) + ' → ' + n2(nv)); }
+      else if (c.key === 'star_size') { parts.push('星星大小 ' + n2(oldV) + ' → ' + n2(nv)); }
+      else if (c.key === 'spawn_interval') { parts.push('星星出现间隔 ' + n2(oldV) + ' → ' + n2(nv) + ' 毫秒'); }
+      else if (c.key === 'gold_chance') { parts.push('金星星概率约 ' + Math.round((Number(nv)||0)*100) + '%'); }
+      else if (c.key === 'bomb_chance') { parts.push('炸弹星概率约 ' + Math.round((Number(nv)||0)*100) + '%'); }
+      else if (c.key === 'magnet') { parts.push(nv ? '磁铁 开' : '磁铁 关'); }
+      else if (c.key === 'extra_life') { parts.push('额外生命 +' + n2(nv)); }
+      else if (c.key === 'catcher_scale') { parts.push('接星宽度倍率 ' + n2(oldV) + ' → ' + n2(nv)); }
+      else if (c.key === 'title') { parts.push('游戏名改为「' + nv + '」'); }
+      else if (c.key === 'duration') { parts.push('一局时长 ' + n2(nv) + ' 秒'); }
+    });
+    if (patch) {
+      if (patch.attack) parts.push('能发射攻击光弹');
+      (patch.entities || []).forEach(function(e){
+        if (!e) return;
+        if (e.kind === 'bad') parts.push('新坏蛋：' + (e.emoji || '👾'));
+        else if (e.kind === 'gold') parts.push('新奖励：' + (e.emoji || '🌟'));
+        else if (e.kind) parts.push('新道具：' + (e.emoji || '✨'));
+      });
+    }
+    if (typeof script === 'string' && script.trim()) parts.push('有一条自定义玩法脚本');
+    return parts.join('；');
+  }
+  function addChangeCard(reply, summary, changes, patch, script, heardCount){
     var myChanges = (changes || []).slice();
     var myPatch = patch ? deepClone(patch) : null;
     var myScript = (typeof script === 'string' && script.trim()) ? script.trim() : null;
@@ -393,9 +436,12 @@
 
     var card = document.createElement('div');
     card.className = 'change-card';
+    var receipt = receiptText(myChanges, myPatch, myScript);
     card.innerHTML =
       '<div class="cc-head">✨ <b>改造方案</b></div>' +
       '<div class="cc-summary">' + esc(summary) + '</div>' +
+      (receipt ? '<div class="cc-receipt">我听到的是：' + esc(receipt) + '</div>' : '') +
+      (heardCount && heardCount > 1 ? '<div class="cc-heard">👂 你这一句里说了 ' + heardCount + ' 件事</div>' : '') +
       '<div class="cc-actions">' +
         '<button class="btn-apply">✨ 应用，马上能玩新版本</button>' +
         '<a class="btn-skip" href="/game_v1/">先玩现在的版本对比一下（先不改）</a>' +
@@ -428,6 +474,20 @@
     if(hasSc) mods.script = script;
     if(!mods.history) mods.history = [];
     mods.history.push({ summary: '改造', time: Date.now() });
+    var sinceTyped = 0, typedSeen = false;
+    var si = history.length - 1;
+    while (si >= 0 && history[si].role === 'assistant') si--;
+    for (; si >= 0; si--) {
+      var hm = history[si];
+      if (hm.role === 'user') {
+        if ((hm.src || 'type') !== 'option') { sinceTyped++; typedSeen = true; }
+        continue;
+      }
+      if (hm.role === 'assistant') { try { var sj = JSON.parse(hm.content); if (sj.action === 'modify') break; } catch(e){} }
+    }
+    // 只统计孩子自己组织语言说出的请求；点选项/标签不算（那是 AI 给的方向）
+    if (typedSeen) bumpGrowth(sinceTyped <= 1 ? 'oneShot' : 'multiTurn');
+    bumpGrowth('applyCount');
     localStorage.setItem(MODS_KEY, JSON.stringify(mods));
 
     btn.textContent = '✅ 已应用！点这里去玩新版本';
@@ -496,6 +556,7 @@
     localStorage.setItem(MODS_KEY, JSON.stringify(next));
     Sfx.undo();
     refreshModbar();
+    bumpGrowth('undoCount');
     addMsg('ai', '撤销好啦，游戏回到上一步的样子。还想怎么改？');
   }
   var resetArmed = false, resetTimer = null;
@@ -546,25 +607,48 @@
   // ---------- 分享：版本 → 专属短链接 ----------
   function verB64(bytes){ var bin=''; for(var i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]); return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
   function makeVersionLink(v){
-    var payload = { n: v.name, o: save ? save.owner : '', h: (hero && save && save.owned && save.owned[0]) ? { name: hero.name, originalName: hero.originalName, rarity: hero.rarity, img: hero.img } : null, m: v.mods || {} };
-    var bytes = new TextEncoder().encode(JSON.stringify(payload));
-    if (window.CompressionStream) {
-      try {
-        var stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
-        return new Response(stream).arrayBuffer().then(function(buf){ return location.origin + '/game_v1/?v=' + 'z.' + verB64(new Uint8Array(buf)); });
-      } catch(e){}
-    }
-    return Promise.resolve(location.origin + '/game_v1/?v=' + 'u.' + verB64(bytes));
+    var payload = { n: v.name, o: save ? save.owner : '', w: v.why || '', h: (hero && save && save.owned && save.owned[0]) ? { name: hero.name, originalName: hero.originalName, rarity: hero.rarity, img: hero.img } : null, m: v.mods || {} };
+    return fetch('/api/share', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payload: payload }) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res.ok && res.code) return location.origin + '/game_v1/?s=' + res.code;
+        throw new Error('share failed');
+      })
+      .catch(function(){
+        var bytes = new TextEncoder().encode(JSON.stringify(payload));
+        if (window.CompressionStream) {
+          try {
+            var stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
+            return new Response(stream).arrayBuffer().then(function(buf){ return location.origin + '/game_v1/?v=' + 'z.' + verB64(new Uint8Array(buf)); });
+          } catch(e){}
+        }
+        return Promise.resolve(location.origin + '/game_v1/?v=' + 'u.' + verB64(bytes));
+      });
   }
   function openShare(v){
+    if (!loadParent().allowShare) {
+      var ovx = openOverlay('<h3>🔒 分享已由家长关闭</h3><div class="sub">家长在「家长模式」里关掉了公开分享。想让朋友玩，请家长打开允许分享。</div><div style="text-align:center;"><button class="ver-primary" id="share-ok" style="max-width:160px;">知道了</button></div>');
+      ovx.querySelector('#share-ok').addEventListener('click', function(){ ovx.remove(); });
+      return;
+    }
     makeVersionLink(v).then(function(link){
       var ov = openOverlay(
         '<h3>🔗 分享「' + esc(v.name) + '」</h3>' +
         '<div class="sub">朋友打开这个链接就能直接玩你这一版（不用认领角色）。发朋友圈/给爸妈：等游戏上线后，任何地方打开都能玩。</div>' +
         '<input class="ver-input" id="share-link" readonly value="' + esc(link) + '">' +
+        '<div class="qr-wrap" id="share-qr"></div>' +
         '<div class="ver-actions"><button class="ver-ghost" id="share-close">关闭</button><button class="ver-primary" id="share-copy">复制链接</button></div>'
       );
       var inp = ov.querySelector('#share-link');
+      var qrWrap = ov.querySelector('#share-qr');
+      if (qrWrap && window.qrcode) {
+        try {
+          var q = qrcode(0, 'M');
+          q.addData(link);
+          q.make();
+          qrWrap.innerHTML = '<img class="qr-img" src="' + q.createDataURL(4, 8) + '" alt="扫码玩这一版">' + '<div class="qr-hint">手机扫码，打开就能玩（不用下载）</div>';
+        } catch(e){ qrWrap.innerHTML = '<div class="qr-hint">复制上面链接发给他也能玩</div>'; }
+      }
       ov.querySelector('#share-close').addEventListener('click', function(){ ov.remove(); });
       ov.querySelector('#share-copy').addEventListener('click', function(){
         inp.focus(); inp.select();
@@ -596,6 +680,7 @@
       '<h3>📦 把这版存起来</h3>' +
       '<div class="sub">给这一版起个名字吧（比如：我的怪兽版、慢速版）</div>' +
       '<input class="ver-input" id="ver-name" maxlength="12" placeholder="版本 ' + (list.length + 1) + '">' +
+      '<textarea class="ver-input" id="ver-why" rows="2" maxlength="60" placeholder="这版为什么酷？写一句话，会跟着作品一起分享出去（比如：加了会飞的怪兽，超刺激！）"></textarea>' +
       '<div class="ver-actions"><button class="ver-ghost" id="ver-cancel">取消</button><button class="ver-primary" id="ver-ok">保存</button></div>'
     );
     var inp = ov.querySelector('#ver-name');
@@ -604,9 +689,11 @@
     ov.querySelector('#ver-cancel').addEventListener('click', function(){ ov.remove(); });
     ov.querySelector('#ver-ok').addEventListener('click', function(){
       var name = inp.value.trim() || ('版本 ' + (list.length + 1));
+      var why = (ov.querySelector('#ver-why') ? ov.querySelector('#ver-why').value : '').trim().slice(0, 60);
       var payload = payloadMods();
-      list.unshift({ id: Date.now() + '-' + Math.floor(Math.random() * 999), name: name, ts: Date.now(), mods: payload, title: (payload.title || '') });
+      list.unshift({ id: Date.now() + '-' + Math.floor(Math.random() * 999), name: name, ts: Date.now(), mods: payload, title: (payload.title || ''), why: why });
       if(list.length > 30) list = list.slice(0, 30);
+      bumpGrowth('versionCount');
       saveVersions(list);
       ov.remove();
       var b = el('btn-save-version');
@@ -620,7 +707,7 @@
       ? list.map(function(v, idx){
           var d = new Date(v.ts);
           var dateStr = (d.getMonth()+1) + '月' + d.getDate() + '日 ' + (d.getHours()<10?'0':'') + d.getHours() + ':' + (d.getMinutes()<10?'0':'') + d.getMinutes();
-          return '<div class="ver-item"><div class="vi-info"><div class="vi-name">' + esc(v.name) + (v.title ? ' · ' + esc(v.title) : '') + '</div><div class="vi-sub">' + dateStr + '</div></div>' +
+          return '<div class="ver-item"><div class="vi-info"><div class="vi-name">' + esc(v.name) + (v.title ? ' · ' + esc(v.title) : '') + '</div><div class="vi-sub">' + dateStr + '</div>' + (v.why ? '<div class="vi-why">💬 ' + esc(v.why) + '</div>' : '') + '</div>' +
             '<button class="vi-btn play" data-i="' + idx + '">▶ 玩</button>' +
             '<button class="vi-btn" data-load="' + idx + '">改</button>' +
             '<button class="vi-btn del" data-del="' + idx + '">删</button>' +
@@ -669,6 +756,107 @@
     });
   }
 
+  // ---------- 成长档案 & 家长模式 ----------
+  function loadGrowth(){
+    try {
+      var raw = localStorage.getItem(GROWTH_KEY);
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || o.owner !== save.owner) return null;
+      return o;
+    } catch(e){ return null; }
+  }
+  function bumpGrowth(k){
+    var g = loadGrowth() || { owner: save ? save.owner : '', sayCount: 0, oneShot: 0, multiTurn: 0, undoCount: 0, versionCount: 0, applyCount: 0, updated: 0 };
+    g[k] = (g[k] || 0) + 1;
+    g.updated = Date.now();
+    try { localStorage.setItem(GROWTH_KEY, JSON.stringify(g)); } catch(e){}
+  }
+  function loadParent(){
+    var def = { owner: save ? save.owner : '', aiOff: false, dayLimit: 200, allowShare: true };
+    try {
+      var raw = localStorage.getItem(PARENT_KEY);
+      if(!raw) return def;
+      var o = JSON.parse(raw);
+      if(!o || o.owner !== save.owner) return def;
+      return { owner: o.owner, aiOff: !!o.aiOff, dayLimit: Math.max(0, Number(o.dayLimit) || 200), allowShare: o.allowShare !== false };
+    } catch(e){ return def; }
+  }
+  function saveParent(p){
+    try { localStorage.setItem(PARENT_KEY, JSON.stringify(p)); } catch(e){}
+  }
+  function chatDay(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); }
+  function chatUse(){
+    var owner = save ? save.owner : '';
+    try {
+      var raw = localStorage.getItem(CHATLOG_KEY);
+      var o = raw ? JSON.parse(raw) : null;
+      if(!o || o.date !== chatDay() || o.owner !== owner) o = { owner: owner, date: chatDay(), n: 0 };
+      return o;
+    } catch(e){ return { owner: owner, date: chatDay(), n: 0 }; }
+  }
+  function chatGuardMsg(){
+    var p = loadParent();
+    if (p.aiOff) { addMsg('ai', 'AI 聊天被家长暂时关掉了，先去玩你的游戏吧～'); return true; }
+    var use = chatUse();
+    if (use.n >= p.dayLimit) { addMsg('ai', '今天和伙伴聊天已经到上限啦（家长设置的），明天再来继续做吧～'); return true; }
+    return false;
+  }
+  function markChatUsed(){
+    try {
+      var use = chatUse();
+      use.n += 1;
+      localStorage.setItem(CHATLOG_KEY, JSON.stringify(use));
+    } catch(e){}
+  }
+  function parentGate(cb){
+    var K = 'jiahong-wb-parentpin-v1';
+    var saved = null;
+    try { saved = localStorage.getItem(K); } catch(e){}
+    if (!saved) {
+      var set = prompt('第一次使用家长模式，请设一个 4 位数字密码（以后打开要输入）：');
+      if (!set || !/^\d{4}$/.test(set)) { alert('密码要 4 位数字哦。'); return; }
+      try { localStorage.setItem(K, set); } catch(e){}
+      cb(); return;
+    }
+    var input = prompt('请输入家长模式密码：');
+    if (input !== saved) { alert('密码不对～'); return; }
+    cb();
+  }
+  function openParentPanel(){
+    if (!save) return;
+    var p = loadParent();
+    var g = loadGrowth();
+    var hist = loadHistoryMemo() || [];
+    var chatRows = hist.slice(-10).map(function(m){
+      var who = m.role === 'user' ? '孩子' : (hero ? hero.name : '伙伴');
+      var txt = m.content;
+      try { var j = JSON.parse(m.content); if (j.reply) txt = j.reply; } catch(e){}
+      return '<div class="ii-text">' + esc(who) + '：' + esc(String(txt).slice(0, 60)) + '</div>';
+    }).join('');
+    var gHtml = g ? ['说出想法 ' + (g.sayCount||0) + ' 次','一次说清 ' + (g.oneShot||0) + ' 次','反复打磨 ' + (g.multiTurn||0) + ' 次','试错/撤销 ' + (g.undoCount||0) + ' 次','作品 ' + (g.versionCount||0) + ' 个','应用改造 ' + (g.applyCount||0) + ' 次'].join(' · ') : '（还没有记录）';
+    var ov = openOverlay(
+      '<h3>👨‍👩‍👧 家长模式</h3>' +
+      '<div class="sub">管住 AI 聊天、控制作品公开、看孩子最近的对话与成长。</div>' +
+      '<div class="ver-item" style="display:block;"><b>AI 聊天</b><label style="display:flex;gap:8px;margin-top:6px;align-items:center;"><input type="checkbox" id="par-aioff"' + (p.aiOff ? ' checked' : '') + '> 关闭（孩子先玩成品，不跟 AI 聊）</label></div>' +
+      '<div class="ver-item" style="display:block;"><b>每天对话上限</b><input class="ver-input" id="par-limit" type="number" min="0" max="500" value="' + p.dayLimit + '" style="margin-top:6px;"></div>' +
+      '<div class="ver-item" style="display:block;"><b>允许把作品分享到公开链接</b><label style="display:flex;gap:8px;margin-top:6px;align-items:center;"><input type="checkbox" id="par-share"' + (p.allowShare ? ' checked' : '') + '> 允许</label></div>' +
+      '<div class="sub" style="margin-top:6px;">📈 成长档案：' + gHtml + '</div>' +
+      (chatRows ? '<div class="sub" style="margin-top:8px;">🕘 最近对话（最近10条）：</div>' + chatRows : '') +
+      '<div class="ver-actions" style="margin-top:10px;"><button class="ver-ghost" id="par-cancel">关闭</button><button class="ver-primary" id="par-save">保存设置</button></div>'
+    );
+    ov.querySelector('#par-cancel').addEventListener('click', function(){ ov.remove(); });
+    ov.querySelector('#par-save').addEventListener('click', function(){
+      var np = { owner: save.owner,
+        aiOff: ov.querySelector('#par-aioff').checked,
+        dayLimit: Math.max(0, Number(ov.querySelector('#par-limit').value) || 0),
+        allowShare: ov.querySelector('#par-share').checked };
+      saveParent(np);
+      ov.remove();
+      addMsg('ai', '家长设置已保存～');
+    });
+  }
+
   // ---------- 与 AI 对话 ----------
   function requestAI(){
     if(busy) return;
@@ -678,7 +866,7 @@
     btn.disabled = true;
 
     var payload = {
-      messages: history.slice(-16),
+      messages: history.slice(-24),
       owner: save ? save.owner : '小朋友',
       hero: hero ? { name: hero.name, originalName: hero.originalName, rarity: hero.rarity, personality: hero.personality } : null,
     };
@@ -695,7 +883,7 @@
         var reply = res.reply || '';
         if(res.action === 'modify'){
           history.push({ role:'assistant', content: JSON.stringify({ action:'modify', reply:reply, summary:res.summary, changes:res.changes, patch:(res.patch||null), script:(res.script||null) }) });
-          addChangeCard(reply, res.summary, res.changes, res.patch, res.script);
+          addChangeCard(reply, res.summary, res.changes, res.patch, res.script, res.heardCount);
         } else if(res.action === 'wish'){
           history.push({ role:'assistant', content: JSON.stringify({ action:'wish', reply:reply, note:(res.note||''), options:(res.options||[]) }) });
           addMsg('ai', reply);
@@ -719,14 +907,18 @@
       });
   }
 
-  function sendText(text){
+  function sendText(text, src){
     if(busy) return;
+    if (chatGuardMsg()) return;
     var input = el('input');
     text = (text == null ? input.value : String(text)).trim();
     if(!text) return;
+    src = src || 'type';
     input.value = '';
     addMsg('me', text);
-    history.push({ role:'user', content:text });
+    history.push({ role:'user', content:text, src: src });
+    if (src !== 'option') bumpGrowth('sayCount');
+    markChatUsed();
     persistHistory();
     Sfx.send();
     requestAI();
@@ -747,6 +939,16 @@
     });
   }
 
+  function clearSessionForNewKid(){
+    if(!save) return;
+    var last = null;
+    try { last = localStorage.getItem(SESSION_OWNER_KEY) || ''; } catch(e){}
+    if(last === save.owner) return;
+    try {
+      [MODS_KEY, EARN_KEY, CHATLOG_KEY, HISTORY_KEY].forEach(function(k){ localStorage.removeItem(k); });
+      localStorage.setItem(SESSION_OWNER_KEY, save.owner);
+    } catch(e){}
+  }
   function init(){
     save = loadSave();
     if(!save){
@@ -755,6 +957,7 @@
       el('btn-go-claim').addEventListener('click', function(){ location.href = '/claim_v1/'; });
       return;
     }
+    clearSessionForNewKid();
     el('empty').hidden = true;
     el('main').hidden = false;
     el('main').style.display = 'flex';
@@ -796,7 +999,7 @@
       var b = document.createElement('button');
       b.className = 'chip';
       b.textContent = c.label;
-      b.addEventListener('click', function(){ sendText(c.text); });
+      b.addEventListener('click', function(){ sendText(c.text, 'option'); });
       chips.appendChild(b);
     });
 
@@ -813,6 +1016,7 @@
     // 状态条按钮
     el('btn-undo').addEventListener('click', doUndo);
     el('btn-save-version').addEventListener('click', openSaveVersion);
+    if (/[?&]parent=1/.test(location.search)) { setTimeout(function(){ parentGate(openParentPanel); }, 400); }
     el('btn-versions').addEventListener('click', openVersionList);
     el('btn-reset').addEventListener('click', doReset);
     refreshModbar();
