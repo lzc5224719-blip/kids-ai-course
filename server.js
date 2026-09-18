@@ -73,7 +73,7 @@ function clipSharePayload(p){
   Object.keys(MOD_RULES).forEach(k => {
     if (m[k] === undefined) return;
     const rule = MOD_RULES[k];
-    if (rule.type === 'boolean') { if (m[k] === true) outM[k] = true; return; }
+    if (rule.type === 'boolean') { if (m[k] === true || m[k] === false) outM[k] = !!m[k]; return; }
     if (rule.type === 'string') { outM[k] = String(m[k]).slice(0, rule.max || 16); return; }
     const n = Number(m[k]);
     if (!isFinite(n)) return;
@@ -121,6 +121,9 @@ const MOD_RULES = {
   catcher_scale: { type: 'number', min: 0.8, max: 2, def: 1 },
   title: { type: 'string', max: 16, def: '' },
   duration: { type: 'number', min: 10, max: 600, def: 60 },
+  star_spawn: { type: 'boolean', def: true },
+  auto_fire: { type: 'boolean', def: false },
+  vehicle: { type: 'string', max: 8, def: '' },
 };
 
 // ---------- 工具 ----------
@@ -198,6 +201,9 @@ function buildSystem(hero, owner) {
     '- catcher_scale：角色接星星的宽度倍率，数字，1=正常 1.5=加宽',
     '- title：游戏标题，字符串，简短（16字以内）',
     '- duration：本局限时秒数，数字 10~600，默认 60（孩子说“限时/倒计时/多长时间”就用它）',
+    '- star_spawn：要不要出现星星，true=有星星 false=不要星星（孩子说“不要星星/一个星星都不要”就设 false）',
+    '- auto_fire：子弹是否自动发射，true=自动发射 false=手动点（孩子说“子弹/光弹自动发射”就设 true）',
+    '- vehicle：角色的坐骑，字符串，8字以内，比如“✈️”“🛸”“🚀”（孩子说“坐在飞机/飞碟/火箭上”就用它）',
     '',
     '【玩法补丁 patch —— 让孩子天马行空的想法能当场做出来】',
     '除了调数字，你还能给游戏加“新东西/新玩法”，通过 JSON 里的 patch 字段：',
@@ -208,14 +214,25 @@ function buildSystem(hero, owner) {
     '一次只动手做孩子当前说的一个点。但孩子一条话里如果说了好几件事，必须【逐条回应】：能做的动手做，这次做不了的也要明确说一句「这件事我这次先记进愿望单」——绝不允许只做第一件、其余的一个字不提。孩子没提的不要自作主张加。',
     '',
     '',
-    '【玩法脚本 script（更自由：计时/条件/事件，超出 patch 时用）】',
-    'JSON 里还可带 "script":"<一小段玩法代码>"。script 只能用这些能力：',
-    'R.every(毫秒,函数)：每隔多久做一次；R.onFrame(函数)：每帧执行；R.onCatch("good|gold|bad|power|bomb",函数)：接到某类东西时触发；R.onHurt(函数)：被炸/受伤时触发；',
-    'R.spawn({...})：当场生成一个东西（字段同 patch 实体）；R.addScore(分)；R.addLife(条)；R.flash()：闪红；R.shield()：加护盾；R.lives()/R.score()：读取。',
-    '只能写这些，不能碰网页/网络/文件；写错会被自动停掉不影响游戏。代码要短（建议 300 字内，最多 1500）。',
-    '例子1（每 3 秒掉一颗爱心，接到就加命）： R.every(3000, function(){ R.spawn({ kind:"power", power:"life", shape:"text", text:"❤", size:24, speed:1.5 }); });',
-    '例子2（连续接到 3 颗金星就加一条命）： var n=0; R.onCatch("gold", function(){ n++; if(n>=3){ n=0; R.addLife(1); R.flash(); } });',
-    '能用 changes/patch 表达的就用它们；需要计时/条件/事件时才用 script。',
+        '【玩法积木 script —— 这是你最主要的“动手做”工具】',
+    '只要孩子的想法还在“接住天上掉下来的东西 / 打掉坏蛋”这个游戏框架里，你都要尽量用 script 当场做出来，不要只靠固定键。script 是一小段安全代码，写错会被自动停掉、不会弄坏游戏。代码要短（建议 400 字内，最多 1500）。',
+    '你可以用这些积木（R 开头）：',
+    '· R.every(毫秒, function(){...})：每隔一段时间做一次。',
+    '· R.onFrame(function(){...})：每一帧都做（适合持续追踪）。',
+    '· R.onCatch("good|gold|bad|power|bomb", function(){...})：接到某类东西时触发。',
+    '· R.onHurt(function(){...})：玩家受伤时触发。',
+    '· R.onShoot(function(){...})：子弹打掉一个坏蛋时触发（适合“打到10只就赢”这类目标）。',
+    '· R.spawn({...})：立刻生成一个东西。字段：kind("good"/"gold"/"bad"/"power")、shape("text"/"circle"/"star"/"heart"/"rect")、text(emoji或字)、size(14~60)、speed(0.5~9)、interval(毫秒)、score(0~300)、side("top"/"sine"/"left"/"right")、targetable(能不能被子弹打)、power(护盾等)、vx(横向漂移速度，-6~6)、chase(慢慢追着玩家)、bounce(碰到两边会弹)。',
+    '· R.fire()：立刻射一颗光弹；R.fireRate(帧数)：子弹发射快慢（默认14，越小越快，4~30）。',
+    '· R.say("一句话")：在画面上显示一条大字提示（比如“怪兽来啦！”）。',
+    '· R.shake()：屏幕抖一下；R.weather("❄️")：下雪/下雨等天气粒子（写 emoji）。',
+    '· R.setTime(秒)：把本局时长改成多少秒；R.time()：读剩余秒数。',
+    '· R.addScore(分)：加分；R.addLife(条)：加命；R.flash()：闪红；R.shield()：加护盾；R.lives()/R.score()：读命/分。',
+    '· R.end()：孩子设定的“赢了/达成目标”条件一达到，就结束这局并宣布胜利。',
+    '例子1（每3秒掉一颗爱心，接到加命）：R.every(3000, function(){ R.spawn({kind:"power",power:"life",shape:"text",text:"❤",size:24,speed:1.5}); });',
+    '例子2（接3颗金星加一命）：var n=0; R.onCatch("gold", function(){ n++; if(n>=3){ n=0; R.addLife(1); R.flash(); } });',
+    '例子3（怪兽会追人+定时喊话+下雪）：R.weather("❄️"); R.every(4000, function(){ R.spawn({kind:"bad",shape:"text",text:"👾",size:34,speed:1.8,chase:true,targetable:true,score:20}); }); R.every(5000, function(){ R.say("怪兽来啦！"); });',
+    '能用 changes/patch 简单表达的优先用它们（更稳），需要计时/条件/事件/持续行为时才用 script；两者可以同时给。',
     '',
     '规则：',
     '- 一次只输出 1 个改动（changes 数组通常只放 1 个元素）。',
@@ -224,11 +241,12 @@ function buildSystem(hero, owner) {
     '- 先用 patch 把孩子的想法真正做出来：他说「怪兽/会飞的坏蛋/我要打它」→ patch 加 kind="bad" 的 👾 实体并 targetable:true、attack:true；说「掉护盾/双倍分道具」→ 加 kind="power" 实体；说「限时/倒计时」→ changes 给 duration。能当场做的就当场做，别劝他换别的。',
     '- 孩子说「被炸到/碰到坏蛋屏幕会变红/全屏泛红」：这是游戏自带的受伤反馈——只要加了炸弹星或坏蛋，被炸到就会全屏泛红，不用也不能额外设置；直接加炸弹（bomb_chance 或 💣 坏蛋实体）即可。',
     '- 孩子说清后就直接动手输出 modify/patch，不要反复追问；最多问 2 个小问题，问完必须做；能直接做就直接做。',
+    '- 孩子说“不要星星 + 坐在飞机上 + 子弹自动发射打怪兽”这类组合时，一次全做：changes 给 star_spawn:false、auto_fire:true、vehicle:“✈️”，并 patch 加 attack:true + 一个 kind:“bad”、text:“👾”、targetable:true 的实体。',
     '- 只有孩子想要「做一个全新游戏/换个游戏类型」这种框架外的，才用「愿望单」action=wish：先夸（「这个想法太酷了！」）→ 记进愿望单并承诺「下次课我们一起把它做出来」→ options 给 1-2 个现在能试的方向。',
     '- 每次提问（action=ask）必须带上 options——3 个左右、孩子点一下就回答的短选项（每个不超过 12 个字），这 3 个选项就是刚才那个问题最常见的几种答案。',
     '- 设计问题时，要让 options 里的选项能直接回答它。孩子还有输入框可以自己打字，所以 options 是「最可能的几条路」，不用穷尽，但一定得有。',
     '- 改完（action=modify）之后想继续引导孩子，也可以再加一个 options（比如「还想要点什么」的几条建议）；不带也没关系。',
-    '- 这个游戏可以从这些「维度」改：速度、星星数量、星星大小、难度、奖励（金星星概率）、角色能力（接得更宽/命更多）、主题名字。',
+    '- 这个游戏可以从这些固定维度改：速度、星星数量、星星大小、难度、奖励（金星星概率）、角色能力（接得更宽/命更多）、主题名字；其它任何“在框架内”的想法都用 patch/script 当场做。',
     '- 引导的节奏要跟着孩子走：问「感受」时 options 就是几种感受；确认「方向」时 options 才是几种方向。不要每一步都甩「快/慢」，要让孩子自己一层层说出来。',
     '- 全程用孩子能懂的口吻，不说技术黑话。',
   ].join('\n');
@@ -284,6 +302,9 @@ function sanitizeEntity(e){
     damage: clampNum(e.damage, 1, 3, 1),
     side: PATCH_SIDES.includes(e.side) ? e.side : 'top',
     amp: clampNum(e.amp, 10, 160, 60),
+    vx: clampNum(e.vx, -6, 6, 0),
+    chase: !!e.chase,
+    bounce: !!e.bounce,
     power: PATCH_POWERS.includes(e.power) ? e.power : '',
     targetable: !!e.targetable,
   };

@@ -7,10 +7,9 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <button id="btn-mute" title="声音开关">🔊</button>
-  <button id="btn-home" title="返回工坊">← 回工坊</button>
-
   <div id="app">
+    <button id="btn-mute" title="声音开关">🔊</button>
+    <button id="btn-home" title="返回工坊"><img src="/assets/ui/icon-back.png" alt="回工坊"></button>
 
     <!-- ============= 视图 1：身份 ============= -->
     <section class="view view-name" data-view="name-input" hidden>
@@ -70,7 +69,7 @@
       <button class="btn btn-link" id="btn-back-name">← 换个代号</button>
     </section>
 
-    <!-- ============= 视图 3：扭蛋机 ============= -->
+    <!-- ============= 视图 3：扭蛋机（框架图底） ============= -->
     <section class="view view-gacha" data-view="gacha" hidden>
       <header class="topbar">
         <span class="topbar-step">第 2 步</span>
@@ -79,31 +78,19 @@
       </header>
 
       <div class="gacha-stage" id="gacha-stage">
-        <div class="gacha-machine">
-          <div class="gm-dome" id="gm-dome">
-            <div class="gm-capsules" id="gm-capsules"></div>
-          </div>
-          <div class="gm-neck"></div>
-          <div class="gm-body">
-            <div class="gm-window">
-              <div class="gm-capsule" id="gm-capsule" hidden></div>
-            </div>
-            <button class="gm-crank" id="btn-knob" aria-label="摇杆">
-              <span class="gm-crank-arm"></span>
-              <span class="gm-crank-dot"></span>
-            </button>
-          </div>
-          <div class="gm-base"></div>
+        <div class="gm-dome" id="gm-dome">
+          <div class="gm-capsules" id="gm-capsules"></div>
         </div>
-
+        <div class="gm-capsule" id="gm-capsule" hidden></div>
         <div class="gacha-result-area" id="gacha-result-area"></div>
       </div>
 
-      <div class="gacha-hint" id="gacha-hint">转动摇杆，释放你的英雄</div>
+      <div class="gacha-hint" id="gacha-hint">点下面的大按钮，摇出你的英雄</div>
       <div class="gacha-cost" id="gacha-cost"></div>
 
-      <button class="btn btn-primary btn-xl" id="btn-go-rename" disabled style="margin-top:18px">带 TA 回家 →</button>
-      <button class="btn btn-secondary btn-m" id="btn-double" hidden>🎰 双蛋连抽（剩 <span id="double-count">0</span> 次）</button>
+      <button class="capsule-btn" id="btn-go-rename" disabled>带 TA 回家 →</button>
+      <button class="capsule-btn knob-capsule" id="btn-knob" aria-label="摇一摇">🎰 摇一摇</button>
+      <button class="btn btn-secondary" id="btn-double" hidden>🎰 双蛋连抽（剩 <span id="double-count">0</span> 次）</button>
     </section>
 
     <!-- ============= 视图 4：起名 ============= -->
@@ -208,7 +195,8 @@
     </div>
   </div>
 
-  <script src="data.js"></script>
+
+<script src="data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

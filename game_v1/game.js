@@ -44,6 +44,14 @@
     dur: 60,
     startAt: 0,
     timeUp: false,
+    noStars: false,     // 打怪兽模式：撤掉所有星星
+    autoFire: false,    // 子弹自动发射
+    vehicle: '',        // 坐骑 emoji（飞机/飞碟等）
+    weather: '',        // 天气粒子 emoji（下雪/下雨等）
+    shake: 0,           // 屏幕震动剩余帧数
+    banner: { text: '', until: 0 },  // 大字提示
+    shotCoolMax: 14,    // 子弹发射冷却帧数
+    endTitle: '',       // 自定义胜利标题
     // 可调参数（咒语/商店会改）
     params: {
       starSpeed: 2.2,      // 基础下落速度
@@ -130,6 +138,9 @@
     v = rng('extra_life', mods.extra_life);      if (v != null) S.extraLivesMod = v;
     if (mods.magnet === true) S.magnetMod = true;
     if (typeof mods.title === 'string' && mods.title.trim()) S.titleMod = mods.title.trim().slice(0, 16);
+    S.noStars = (mods.star_spawn === false);
+    S.autoFire = (mods.auto_fire === true);
+    S.vehicle = (typeof mods.vehicle === 'string' && mods.vehicle.trim()) ? mods.vehicle.trim().slice(0, 8) : '';
     loadPatch();
     v = rng('duration', mods.duration);
     S.dur = (v != null ? v : 60);
@@ -158,6 +169,9 @@
       damage: clampNum(e.damage, 1, 3, 1),
       side: PATCH_SIDES.includes(e.side) ? e.side : 'top',
       amp: clampNum(e.amp, 10, 160, 60),
+      vx: clampNum(e.vx, -6, 6, 0),
+      chase: !!e.chase,
+      bounce: !!e.bounce,
       power: PATCH_POWERS.includes(e.power) ? e.power : '',
       targetable: !!e.targetable,
     };
@@ -327,17 +341,20 @@
   const cv = document.getElementById('cv');
   const ctx = cv.getContext('2d');
   const W = cv.width, H = cv.height;
-  let stars = [], particles = [], projectiles = [], catcherX = W / 2, keys = {};
+  const CATCH_Y = Math.round(H * 0.645);      // 竖屏：接东西的底线
+  const PLAY_BOTTOM = Math.round(H * 0.67);   // 超出这条线就算漏接/消失
+  let stars = [], particles = [], projectiles = [], weatherP = [], catcherX = W / 2, keys = {};
   let patch = null, patchTimers = [], shotCool = 0;
   let scriptTimers = [], scriptOnFrame = [], scriptErr = null, scriptLoadFailed = false;
-  let scriptCatchHooks = [], scriptHurtHooks = [];
+  let scriptCatchHooks = [], scriptHurtHooks = [], scriptShootHooks = [];
   let lastSpawn = 0, rafId = null, frame = 0;
 
   function startGame() {
     S.running = true;
     S.score = 0;
     S.lives = (S.hero.rarity === 'SSR' ? 4 : 3) + (S.extraLivesMod || 0);
-    stars = []; particles = []; projectiles = []; frame = 0; shotCool = 0;
+    stars = []; particles = []; projectiles = []; weatherP = []; frame = 0; shotCool = 0;
+    S.weather = ''; S.shake = 0; S.banner = { text: '', until: 0 }; S.shotCoolMax = 14; S.endTitle = '';
     // 每局重置临时增益（商店买的是本局生效；制作台改的磁铁是永久的）
     S.params.magnet = 0;
     if (S.magnetMod) S.params.magnet = Infinity;
@@ -348,7 +365,7 @@
     }) : [];
     $('mask-start').hidden = true;
     $('mask-over').hidden = true;
-    scriptTimers = []; scriptOnFrame = []; scriptCatchHooks = []; scriptHurtHooks = []; scriptErr = null; scriptLoadFailed = false;
+    scriptTimers = []; scriptOnFrame = []; scriptCatchHooks = []; scriptHurtHooks = []; scriptShootHooks = []; scriptErr = null; scriptLoadFailed = false;
     setupScript(S.scriptCode);
     lastSpawn = performance.now();
     S.startAt = performance.now();
@@ -377,12 +394,12 @@
   function spawnPatchEntity(def){
     let x = 0, y = 0, vx = 0, vy = 0, baseX = 0, phase = 0;
     if (def.side === 'left' || def.side === 'right') {
-      y = 40 + Math.random() * (H * 0.35);
+      y = 70 + Math.random() * (CATCH_Y * 0.5);
       if (def.side === 'left') { x = -40; vx = def.speed; } else { x = W + 40; vx = -def.speed; }
     } else if (def.side === 'sine') {
       x = 30 + Math.random() * (W - 60); y = -30; baseX = x; phase = Math.random() * 6.28; vy = def.speed;
     } else {
-      x = 30 + Math.random() * (W - 60); y = -30; vy = def.speed * (0.85 + Math.random() * 0.3);
+      x = 30 + Math.random() * (W - 60); y = -30; vy = def.speed * (0.85 + Math.random() * 0.3); vx = def.vx || 0;
     }
     stars.push({ def: def, kind: def.kind, x: x, y: y, vx: vx, vy: vy, phase: phase, baseX: baseX, size: def.size, rot: Math.random() * 6.28, type: 'custom', dead: false });
   }
@@ -400,8 +417,13 @@
       return;
     }
     if (d.side === 'sine') { st.y += st.vy; st.x = st.baseX + Math.sin(st.phase) * d.amp; st.phase += 0.05; }
-    else { st.y += st.vy; st.rot += 0.03; }
-    if (st.y > H + 50) { st.dead = true; st.exited = true; }
+    else {
+      st.y += st.vy; st.rot += 0.03;
+      if (st.vx) st.x += st.vx;
+      if (d.chase) { const dx = catcherX - st.x; st.x += Math.max(-2.6, Math.min(2.6, dx * 0.05)); }
+      if (d.bounce && (st.x < st.size / 2 || st.x > W - st.size / 2)) { st.vx *= -1; st.x = Math.max(st.size / 2, Math.min(W - st.size / 2, st.x)); }
+    }
+    if (st.y > PLAY_BOTTOM) { st.dead = true; st.exited = true; }
   }
   function drawGuestHero(hw, cy){
     const r = Math.max(16, hw * 0.34);
@@ -476,6 +498,15 @@
       flash: function () { S.params.hurt = 18; },
       shield: function () { S.params.shield = Math.max(S.params.shield, 600); },
       width: function (t) { if (t) S.params.wide = Math.max(S.params.wide, 600); },
+      fire: function () { spawnShot(); },
+      fireRate: function (n) { S.shotCoolMax = Math.max(4, Math.min(30, Number(n) || 14)); },
+      say: function (text) { if (text) S.banner = { text: String(text).slice(0, 40), until: performance.now() + 2600 }; },
+      shake: function () { S.shake = Math.max(S.shake, 14); },
+      weather: function (emoji) { if (emoji) S.weather = String(emoji).slice(0, 4); },
+      setTime: function (n) { const v = Number(n); if (isFinite(v)) S.dur = Math.max(10, Math.min(600, v)); },
+      time: function () { return Math.max(0, Math.round((S.dur - (performance.now() - S.startAt) / 1000) * 10) / 10); },
+      end: function (title) { S.endTitle = String(title || '🎉 你做到了！').slice(0, 20); endGame('script'); },
+      onShoot: function (fn) { scriptShootHooks.push(fn); },
       onCatch: function (kind, fn) { scriptCatchHooks.push({ kind: kind || '*', fn: fn }); },
       onHurt: function (fn) { scriptHurtHooks.push(fn); },
     };
@@ -493,6 +524,12 @@
   function runHurtHooks(){
     if (!S.running) return;
     scriptHurtHooks.forEach(function (h) {
+      try { h.fn(); } catch (e) { scriptErr = String((e && e.message) || e); }
+    });
+  }
+  function runShootHooks(){
+    if (!S.running) return;
+    scriptShootHooks.forEach(function (h) {
       try { h.fn(); } catch (e) { scriptErr = String((e && e.message) || e); }
     });
   }
@@ -516,19 +553,22 @@
   function hurtHero(){
     const p = S.params;
     if (p.invincible > 0) return false;
-    if (p.shield > 0) { p.shield = 0; burst(catcherX, H - 90, '#4cc9f0', 14); Sfx.power(); return false; }
+    if (p.shield > 0) { p.shield = 0; burst(catcherX, CATCH_Y, '#4cc9f0', 14); Sfx.power(); return false; }
     S.lives--;
     flashHurt();
     return true;
   }
 
-  function fireShot(){
-    if (!S.running || !patch || !patch.attack) return;
-    if (shotCool > 0) return;
-    shotCool = 14;
-    const cy = H - 90;
+  function spawnShot(){
+    if (!S.running || shotCool > 0) return;
+    shotCool = S.shotCoolMax;
+    const cy = CATCH_Y;
     projectiles.push({ x: catcherX, y: cy - 70, vy: -10 });
     Sfx.shoot();
+  }
+  function fireShot(){
+    if (!S.running || !patch || !patch.attack) return;
+    spawnShot();
   }
   function updateProjectiles(){
     const p = S.params;
@@ -545,6 +585,7 @@
           S.score += pts;
           burst(st.x, st.y, st.def.color || '#ff6b9d', 16);
           Sfx.boom();
+          runShootHooks();
         }
       });
     });
@@ -586,8 +627,8 @@
 
   function update(now) {
     const p = S.params;
-    // 生成（默认星星）
-    if (now - lastSpawn > p.spawnInterval) { spawnStar(); lastSpawn = now; }
+    // 生成（默认星星；打怪兽模式可撤掉）
+    if (!S.noStars && now - lastSpawn > p.spawnInterval) { spawnStar(); lastSpawn = now; }
     // 生成（玩法补丁实体）
     updatePatchTimers(now);
     // 键盘
@@ -602,9 +643,16 @@
     if (p.wide > 0) p.wide--;
     if (p.hurt > 0) p.hurt--;
     if (shotCool > 0) shotCool--;
+    if (S.shake > 0) S.shake--;
+    if (S.weather) {
+      if (Math.random() < 0.35) weatherP.push({ x: Math.random() * W, y: -20, vy: 1 + Math.random() * 2.5, text: S.weather, size: 16 + Math.random() * 10 });
+    }
+    weatherP.forEach(function (wp) { wp.y += wp.vy; wp.x += Math.sin(wp.y * 0.03) * 0.5; });
+    weatherP = weatherP.filter(function (wp) { return wp.y < PLAY_BOTTOM; });
+    if (S.autoFire && patch && patch.attack) fireShot();
 
     const catcherW = catcherWidth();
-    const cy = H - 90;
+    const cy = CATCH_Y;
 
     // 玩法脚本
     runScripts(now);
@@ -646,7 +694,7 @@
         return;
       }
       // 漏接（仅默认星星）
-      if (st.type !== 'custom' && st.y > H + 30 && !st.dead) {
+      if (st.type !== 'custom' && st.y > PLAY_BOTTOM && !st.dead) {
         st.dead = true;
         if (st.type !== 'bomb' && p.invincible <= 0) { S.lives--; flashHurt(); Sfx.miss(); }
       }
@@ -688,17 +736,31 @@
     }
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = 'rgba(91,70,54,.5)'; // _描边补丁：浅色天空下星星可读
+    ctx.lineWidth = Math.max(2, size * 0.08);
+    ctx.stroke();
     ctx.restore();
   }
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (S.shake > 0) { ctx.translate((Math.random() - 0.5) * S.shake * 0.6, (Math.random() - 0.5) * S.shake * 0.6); }
     // 背景星点
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     for (let i = 0; i < 30; i++) {
-      const sx = (i * 137 + frame * 0.2) % W, sy = (i * 89 + frame * 0.1) % H;
+      const sx = (i * 137 + frame * 0.2) % W, sy = (i * 89 + frame * 0.1) % CATCH_Y;
       ctx.fillRect(sx, sy, 2, 2);
     }
+    // 天气粒子
+    weatherP.forEach(function (wp) {
+      ctx.globalAlpha = 0.7;
+      ctx.font = wp.size + 'px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(wp.text, wp.x, wp.y);
+    });
+    ctx.globalAlpha = 1;
     // 粒子
     particles.forEach(pt => {
       ctx.globalAlpha = Math.min(1, pt.life / 25);
@@ -716,21 +778,29 @@
       else if (st.type === 'bomb') drawStar(st.x, st.y, st.size, st.rot, '#ff5544');
       else drawStar(st.x, st.y, st.size, st.rot, '#bfe8ff');
     });
-    // 角色
-    const cy = H - 90;
+    // 角色（可换成坐骑：飞机/飞碟等）
+    const cy = CATCH_Y;
     if (S.params.invincible > 0 && frame % 10 < 5) ctx.globalAlpha = 0.5;
     const hw = 100 * S.params.catcherScale * (S.params.wide > 0 ? 1.5 : 1), hh = 100 * S.params.catcherScale * (S.params.wide > 0 ? 1.5 : 1);
-    if (S.heroImg && S.heroImg.complete) {
+    if (S.vehicle) {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '64px serif';
+      ctx.fillText(S.vehicle, catcherX, cy - 10);
+      ctx.textBaseline = 'alphabetic';
+      if (S.heroImg && S.heroImg.complete) {
+        const r = 30;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(catcherX, cy - 48, r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(S.heroImg, catcherX - r, cy - 48 - r, r * 2, r * 2);
+        ctx.restore();
+      }
+    } else if (S.heroImg && S.heroImg.complete) {
       ctx.drawImage(S.heroImg, catcherX - hw / 2, cy - hh / 2 - 10, hw, hh);
     } else {
       drawGuestHero(hw, cy);
-    }
-    if (S.heroImg && S.heroImg.complete) {
-      const hw = 100 * S.params.catcherScale * (S.params.wide > 0 ? 1.5 : 1), hh = 100 * S.params.catcherScale * (S.params.wide > 0 ? 1.5 : 1);
-      ctx.drawImage(S.heroImg, catcherX - hw / 2, cy - hh / 2 - 10, hw, hh);
-    } else {
-      ctx.fillStyle = '#ffd700';
-      ctx.fillRect(catcherX - 45, cy - 15, 90, 30);
     }
     ctx.globalAlpha = 1;
     // 磁铁指示
@@ -742,29 +812,39 @@
     // 护盾指示
     if (S.params.shield > 0) { ctx.strokeStyle = 'rgba(76,201,240,0.85)'; ctx.lineWidth = 3; ctx.setLineDash([7, 6]); ctx.beginPath(); ctx.arc(catcherX, cy, 64, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
     // 双倍分指示
-    if (S.params.double > 0) { ctx.fillStyle = '#ffd166'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'left'; ctx.fillText('×2 双倍分!', 16, 56); }
+    if (S.params.double > 0) { ctx.fillStyle = '#B67B2E'; ctx.font = 'bold ' + Math.round(H * 0.032) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('×2 双倍分!', W * 0.155, H * 0.175); } // _HUD补丁
 
-    // HUD
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('得分 ' + S.score, 16, 34);
-    ctx.textAlign = 'right';
-    ctx.fillText('❤'.repeat(Math.max(0, S.lives)), W - 16, 34);
+    // HUD（_HUD补丁：手绘框架图三胶囊居中；深色字；W/H 比例定位，分辨率无关）
+    ctx.fillStyle = '#5B4636';
+    ctx.font = 'bold ' + Math.round(H * 0.024) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('得分 ' + S.score, W * 0.168, H * 0.043);
+    ctx.fillText('❤'.repeat(Math.max(0, S.lives)), W * 0.723, H * 0.043);
     // 倒计时（让孩子知道这局什么时候到头）
     if (S.running) {
       const remain = Math.max(0, S.dur - (performance.now() - S.startAt) / 1000);
       const sec = Math.ceil(remain);
-      ctx.fillStyle = (sec <= 10 ? '#ff6b6b' : '#ffffff');
-      ctx.font = 'bold 18px sans-serif';
+      ctx.fillStyle = (sec <= 10 ? '#C0392B' : '#5B4636');
+      ctx.font = 'bold ' + Math.round(H * 0.024) + 'px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('⏱ ' + sec + ' 秒', W / 2, 30);
+      ctx.fillText('⏱ ' + sec + ' 秒', W * 0.462, H * 0.043);
+    }
+    // 大字提示（脚本 say）
+    if (S.banner.text && performance.now() < S.banner.until) {
+      ctx.save();
+      ctx.fillStyle = '#5B4636';
+      ctx.font = 'bold ' + Math.round(H * 0.06) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(S.banner.text, W / 2, H * 0.28);
+      ctx.restore();
     }
     // 受伤红屏（被炸弹/坏蛋炸到）
     if (S.params.hurt > 0) {
       ctx.fillStyle = 'rgba(255,45,45,' + (0.28 * (S.params.hurt / 18)).toFixed(3) + ')';
       ctx.fillRect(0, 0, W, H);
     }
+    ctx.restore();
   }
 
   // ---------- 建议（裂变闭环：玩家玩完给创作者提建议） ----------
@@ -813,7 +893,7 @@
       S.best = S.score;
       localStorage.setItem('star-game-best', String(S.best));
     }
-    $('over-title').textContent = (reason === 'time') ? '⏱ 时间到！' : '💔 游戏结束';
+    $('over-title').textContent = (reason === 'time') ? '⏱ 时间到！' : (reason === 'script' && S.endTitle ? S.endTitle : '💔 游戏结束');
     $('over-score').textContent = S.score;
     $('over-best').textContent = S.best;
     $('mask-over').hidden = false;

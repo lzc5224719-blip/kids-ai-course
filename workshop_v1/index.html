@@ -4,124 +4,232 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>我的工坊</title>
-<style>
-  [hidden]{display:none!important;}
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  :root{
-    --bg1:#EAF1FF; --bg2:#F3EAFE; --bg3:#FDEAF3;
-    --card:#FFFFFF; --ink:#2C2C2A; --sub:#6B6B6B;
-    --blue:#378ADD; --purple:#7F77DD; --pink:#D4537E;
-    --orange:#EF9F27; --orange-d:#BA7517; --gold:#EF9F27;
-    --teal:#1D9E75; --gray:#B4B2A9;
-  }
-  html,body{height:100%;}
-  body{
-    font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
-    color:var(--ink);
-    background:linear-gradient(160deg,var(--bg1),var(--bg2) 55%,var(--bg3));
-    min-height:100vh;
-    display:flex;justify-content:center;
-  }
-  .app{width:100%;max-width:520px;padding:0 14px 28px;position:relative;}
+<style>/* 工坊首页视觉重构 v1 —— 框架图底 + 真实 DOM 覆盖（坐标来自 layout.json 实测）
+   舞台：9:16 固定比例，居中，其他屏幕比例补 #F0DFC2（框架边缘色）
+   页签：纯 CSS radio 切换，零 JS 依赖 */
+[hidden]{display:none!important;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#F0DFC2;
+  --card:#FFFBF2; --card-soft:#FBF3E2;
+  --ink:#5B4636; --sub:#9A866E; --line:#E7D9BE;
+  --brown:#A9744E; --brown-d:#8A5A3A;
+  --gold:#D9AE6A; --gold-d:#B67B2E;
+  --orange:#C76D32; --gray:#B8A98F;
+  --border-d:#6E4F2E;
+}
+html,body{height:100%;}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  background:var(--bg);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.app{
+  width:min(100vw, calc(100vh * 9 / 16));
+  height:min(100vh, calc(100vw * 16 / 9));
+  position:relative;
+  background:url('/assets/frames/frame-workshop.png') center / 100% 100% no-repeat;
+  container-type:size;
+  overflow:hidden;
+}
+#main{position:absolute;inset:0;}
+button{cursor:pointer;font-family:inherit;}
+button:focus-visible,label:focus-visible{outline:2px dashed var(--gold-d);outline-offset:2px;}
 
-  /* ===== 顶部栏 ===== */
-  .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 2px 10px;}
-  .brand{font-size:20px;font-weight:600;letter-spacing:.5px;}
-  .brand .home{font-size:13px;color:var(--sub);font-weight:400;margin-left:4px;}
-  .top-right{display:flex;align-items:center;gap:8px;}
-  .points-pill{background:var(--card);border-radius:999px;padding:6px 12px;font-size:14px;font-weight:600;color:var(--orange-d);box-shadow:0 2px 8px rgba(0,0,0,.06);}
-  .btn-takehome{background:var(--card);border:none;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--purple);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.06);}
-  .btn-workbench{
-    display:block;width:100%;margin-top:18px;border:none;border-radius:16px;
-    padding:15px 16px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;
-    background:linear-gradient(135deg,var(--blue),var(--purple));
-    box-shadow:0 6px 16px rgba(55,138,221,.25);transition:transform .12s;
-  }
-  .btn-workbench:active{transform:scale(.97);}
-  .btn-workbench small{display:block;font-size:12px;font-weight:400;opacity:.85;margin-top:3px;}
+/* ===== 顶栏：伙伴圆头像 / 品牌名 / 积分药丸（盖在框架图顶栏上） ===== */
+.top-avatar{
+  position:absolute;left:4.6%;top:3.3%;width:11.8cqw;aspect-ratio:1;
+  border-radius:50%;overflow:hidden;background:#F1E6CE;
+}
+.top-avatar img{width:100%;height:100%;object-fit:cover;object-position:center 8%;}
+.brand{
+  position:absolute;left:21%;top:2.75%;width:51%;height:7.54%;
+  display:flex;align-items:center;justify-content:center;gap:.8cqh;
+  font-size:2.5cqh;font-weight:700;color:var(--ink);
+  white-space:nowrap;overflow:hidden;
+}
+.brand .home{font-size:1.7cqh;color:var(--sub);font-weight:400;}
+.points-pill{
+  position:absolute;left:73.65%;top:2.75%;width:23.49%;height:7.54%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2.2cqh;font-weight:700;color:var(--gold-d);white-space:nowrap;
+}
 
-  /* ===== 伙伴区 ===== */
-  .partner{display:flex;flex-direction:column;align-items:center;margin-top:6px;}
-  .bubble{
-    position:relative;background:var(--card);border-radius:18px;
-    padding:14px 18px;max-width:90%;font-size:15px;line-height:1.6;
-    box-shadow:0 6px 18px rgba(0,0,0,.08);cursor:pointer;
-  }
-  .bubble::after{
-    content:"";position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);
-    border:10px solid transparent;border-top-color:var(--card);border-bottom:none;
-  }
-  .bubble .hint{display:block;margin-top:4px;font-size:11px;color:var(--gray);text-align:center;}
-  .partner-figure{margin-top:16px;position:relative;cursor:pointer;}
-  .partner-figure img{
-    width:150px;height:190px;object-fit:contain;
-    animation:float 3s ease-in-out infinite;filter:drop-shadow(0 10px 14px rgba(0,0,0,.18));
-  }
-  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-  .name-tag{
-    display:inline-flex;align-items:center;gap:7px;margin-top:2px;
-    background:var(--card);border-radius:999px;padding:6px 14px;font-size:15px;font-weight:600;
-    box-shadow:0 3px 10px rgba(0,0,0,.08);
-  }
-  .rarity-dot{width:11px;height:11px;border-radius:50%;}
-  .crew{margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
-  .crew .avatar{width:42px;height:42px;border-radius:50%;background:var(--card);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);border:2px solid #fff;}
-  .crew .avatar img{width:100%;height:100%;object-fit:cover;}
-  .crew .avatar.current{border-color:var(--orange);}
+/* ===== 页签：4 个 radio + label，盖在框架图页签框上 ===== */
+.tab-r{position:absolute;width:0;height:0;opacity:0;pointer-events:none;}
+.tabbar label{
+  position:absolute;top:13.46%;height:2.2%;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2.15cqh;font-weight:700;color:#8A7355;
+  border-radius:999px;cursor:pointer;user-select:none;
+}
+.tabbar label[for=ws-tab-1]{left:4.57%;width:21.57%;}
+.tabbar label[for=ws-tab-2]{left:29.12%;width:19.87%;}
+.tabbar label[for=ws-tab-3]{left:52.07%;width:19.87%;}
+.tabbar label[for=ws-tab-4]{left:75.03%;width:20.51%;}
+#ws-tab-1:checked~.tabbar label[for=ws-tab-1],
+#ws-tab-2:checked~.tabbar label[for=ws-tab-2],
+#ws-tab-3:checked~.tabbar label[for=ws-tab-3],
+#ws-tab-4:checked~.tabbar label[for=ws-tab-4]{
+  background:var(--orange);color:#FFF6E8;
+  box-shadow:0 .4cqh 1cqh rgba(199,109,50,.35);
+}
 
-  /* ===== 积分进度 ===== */
-  .progress-wrap{margin-top:18px;background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:0 4px 14px rgba(0,0,0,.06);}
-  .progress-head{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;}
-  .progress-head b{color:var(--orange-d);}
-  .bar{height:10px;border-radius:999px;background:#EFEFF2;overflow:hidden;}
-  .bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--orange),var(--pink));transition:width .5s;}
+/* ===== 页签面板区（对齐框架图 2×2 卡位外框） ===== */
+.panels{position:absolute;left:4.25%;top:22.49%;width:91.61%;height:56.33%;}
+.panel{display:none;position:absolute;inset:0;}
+#ws-tab-1:checked~.panels .p-shelf{display:block;}
+#ws-tab-2:checked~.panels .p-inbox{display:block;}
+#ws-tab-3:checked~.panels .p-growth{display:block;}
+#ws-tab-4:checked~.panels .p-partner{display:block;}
+/* 非作品架面板：大纸板盖住框架卡位 */
+.p-inbox,.p-growth,.p-partner{
+  background:var(--card);border:2px solid var(--border-d);border-radius:2.2cqh;
+  padding:1.6cqh 2.2cqh;overflow-y:auto;
+  box-shadow:0 .8cqh 1.8cqh rgba(110,79,46,.14);
+  scrollbar-width:thin;scrollbar-color:#D9C6A0 transparent;
+}
+.panel-title{font-size:2cqh;font-weight:700;color:var(--brown-d);margin-bottom:1cqh;}
+.panel-hint{padding:4.5cqh 2cqh;text-align:center;font-size:1.8cqh;color:var(--gray);line-height:1.9;}
+#inbox:not([hidden])~.panel-hint,
+#growth:not([hidden])~.panel-hint{display:none;}
 
-  /* ===== 作品架 ===== */
-  .shelf-title{margin:22px 2px 10px;font-size:18px;font-weight:600;}
-  .shelf{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  .work{
-    background:var(--card);border-radius:16px;padding:16px 14px;cursor:pointer;
-    box-shadow:0 4px 14px rgba(0,0,0,.06);transition:transform .12s;
-    display:flex;flex-direction:column;gap:10px;border:2px solid transparent;
-  }
-  .work:active{transform:scale(.97);}
-  .work.done{border-color:var(--teal);}
-  .work.locked{opacity:.6;cursor:default;border-color:#EDEDED;}
-  .work-icon{
-    width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;
-    font-size:20px;font-weight:700;color:#fff;
-  }
-  .work-title{font-size:16px;font-weight:600;}
-  .work-cat{align-self:flex-start;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid currentColor;opacity:.9;white-space:nowrap;}
-  .work-type{font-size:12px;color:var(--sub);}
-  .work-badge{align-self:flex-start;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;}
-  .done .work-badge{background:#E1F5EE;color:var(--teal);}
-  .locked .work-badge{background:#F1EFE8;color:#888780;}
-  .locked .work-icon{background:#D3D1C7;}
-  .inbox{display:flex;flex-direction:column;gap:8px;margin-top:2px;}
-  .inbox-item{background:#F4F1FF;border:1.5px solid #E5DFF7;border-radius:12px;padding:10px 12px;}
-  .inbox-item .ii-text{font-size:14px;color:var(--ink);line-height:1.5;margin-bottom:4px;}
-  .inbox-item .ii-sub{font-size:12px;color:var(--sub);}
+/* ===== 作品架：2×2 透明卡，盖在框架图卡位上 ===== */
+.shelf{
+  position:absolute;inset:0;display:grid;
+  grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  column-gap:3.4cqw;row-gap:1.9cqh;
+}
+.work{
+  display:flex;flex-direction:column;justify-content:center;gap:.9cqh;
+  padding:2.4cqh 2.4cqh;cursor:pointer;border-radius:2cqh;
+  transition:transform .12s;
+}
+.work:active{transform:scale(.97);}
+.work.locked{opacity:.8;cursor:pointer;}
+.work-icon{
+  width:6.4cqh;height:6.4cqh;border-radius:1.6cqh;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:3cqh;font-weight:700;color:#fff;
+  box-shadow:0 .4cqh 1cqh rgba(60,42,26,.16);
+}
+.work.locked .work-icon{filter:grayscale(.45);opacity:.8;}
+.work-title{font-size:2.6cqh;font-weight:800;color:var(--ink);line-height:1.25;}
+.work-type{font-size:2cqh;color:var(--sub);line-height:1.35;}
+.work-cat{
+  align-self:flex-start;font-size:1.6cqh;font-weight:700;white-space:nowrap;
+  padding:.3cqh 1.1cqh;border-radius:999px;border:1.5px solid currentColor;
+}
+.work-badge{
+  align-self:flex-start;font-size:1.65cqh;font-weight:700;
+  padding:.4cqh 1.2cqh;border-radius:999px;
+}
+.done .work-badge{background:#E3F0E4;color:#4E7A5F;}
+.locked .work-badge{background:#F1E8D3;color:#9A866E;}
 
-  /* ===== 无存档引导 ===== */
-  .empty{text-align:center;padding:90px 20px;}
-  .empty .ghost{font-size:60px;margin-bottom:14px;}
-  .empty p{font-size:16px;color:var(--sub);line-height:1.7;margin-bottom:22px;}
-  .btn-primary{
-    border:none;border-radius:14px;padding:14px 34px;font-size:17px;font-weight:600;color:#fff;
-    background:linear-gradient(135deg,var(--orange),var(--pink));cursor:pointer;box-shadow:0 6px 16px rgba(213,83,126,.3);
-  }
+/* ===== 建议箱 / 成长档案列表（JS 动态生成 .inbox-item） ===== */
+.inbox{display:flex;flex-direction:column;gap:1cqh;}
+.inbox-item{background:var(--card-soft);border:1.5px solid var(--line);border-radius:1.6cqh;padding:1.1cqh 1.4cqh;}
+.inbox-item .ii-text{font-size:1.85cqh;color:var(--ink);line-height:1.55;margin-bottom:.4cqh;}
+.inbox-item .ii-sub{font-size:1.5cqh;color:var(--sub);}
 
-  /* ===== 弹层 ===== */
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.42);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
-  .modal{background:#fff;border-radius:18px;padding:22px;max-width:400px;width:100%;}
-  .modal h3{font-size:17px;font-weight:600;margin-bottom:10px;}
-  .modal p{font-size:14px;color:var(--sub);line-height:1.7;margin-bottom:12px;}
-  .code-box{background:#F5F5F7;border-radius:12px;padding:12px;font-size:12px;font-family:monospace;word-break:break-all;max-height:120px;overflow:auto;margin-bottom:14px;}
-  .modal .row{display:flex;gap:10px;}
-  .modal button{flex:1;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;}
-  .btn-copy{background:var(--blue);color:#fff;}
-  .btn-close{background:#EFEFF2;color:var(--ink);}
+/* ===== 成长积分条 ===== */
+.progress-wrap{
+  background:var(--card-soft);border:1.5px dashed #E7D2A8;border-radius:1.6cqh;
+  padding:1.3cqh 1.5cqh;margin-bottom:1.4cqh;
+}
+.progress-head{display:flex;justify-content:space-between;font-size:1.75cqh;color:var(--ink);margin-bottom:.8cqh;}
+.progress-head b{color:var(--gold-d);}
+.bar{height:1.1cqh;border-radius:999px;background:#EFE3C6;overflow:hidden;}
+.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold),var(--orange));transition:width .5s;}
+
+/* ===== 我的伙伴面板 ===== */
+.partner{display:flex;flex-direction:column;align-items:center;gap:1.3cqh;padding-top:.6cqh;}
+.bubble{
+  position:relative;max-width:92%;cursor:pointer;text-align:center;
+  background:var(--card-soft);border:2px solid var(--border-d);border-radius:2cqh;
+  padding:1cqh 1.6cqh;font-size:1.8cqh;line-height:1.55;color:var(--ink);
+}
+.bubble::before,.bubble::after{
+  content:'';position:absolute;left:50%;transform:translateX(-50%);
+  width:0;height:0;border-style:solid;
+}
+.bubble::before{bottom:-1.7cqh;border-width:1.2cqh 1cqh 0;border-color:var(--border-d) transparent transparent;}
+.bubble::after{bottom:calc(-1.7cqh + 2.6px);border-width:1.2cqh 1cqh 0;border-color:var(--card-soft) transparent transparent;}
+.bubble .hint{display:block;margin-top:.3cqh;font-size:1.35cqh;color:var(--gray);}
+.partner-figure{cursor:pointer;text-align:center;}
+.partner-figure img{
+  height:15cqh;width:auto;object-fit:contain;
+  animation:float 3s ease-in-out infinite;
+  filter:drop-shadow(0 1cqh 1.4cqh rgba(110,79,46,.25));
+}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-1cqh)}}
+.name-tag{
+  display:inline-flex;align-items:center;gap:.8cqh;margin-top:.4cqh;
+  background:var(--card);border:1.5px solid var(--line);border-radius:999px;
+  padding:.5cqh 1.5cqh;font-size:1.85cqh;font-weight:700;color:var(--ink);
+}
+.rarity-dot{width:1.2cqh;height:1.2cqh;border-radius:50%;}
+#rarity-text{font-size:1.5cqh;color:var(--sub);font-weight:400;}
+.crew{display:flex;gap:1cqh;justify-content:center;flex-wrap:wrap;}
+.crew .avatar{
+  width:6cqh;height:6cqh;border-radius:50%;overflow:hidden;
+  background:#F1E6CE;border:2px solid var(--line);cursor:pointer;
+}
+.crew .avatar img{width:100%;height:100%;object-fit:cover;object-position:center 8%;}
+.crew .avatar.current{border-color:var(--orange);box-shadow:0 0 0 .4cqh rgba(199,109,50,.2);}
+
+/* ===== 底部双胶囊入口（盖在框架图胶囊上） ===== */
+.entry-btn{
+  position:absolute;top:85.29%;height:5.56%;z-index:2;
+  background:transparent;border:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  line-height:1.1;
+}
+.entry-btn:active{transform:scale(.94);}
+#btn-workbench{left:25.4%;width:23.49%;}
+#btn-workbench span{display:block;font-size:2cqh;font-weight:800;color:var(--brown-d);line-height:1.15;white-space:nowrap;}
+#btn-workbench small{display:block;font-size:1.6cqh;color:var(--sub);line-height:1.2;white-space:nowrap;}
+#btn-takehome{left:51.43%;width:23.06%;font-size:2.2cqh;font-weight:800;color:var(--brown-d);}
+
+/* ===== 无存档空状态 ===== */
+.empty{
+  position:absolute;inset:0;z-index:8;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:8cqh 8%;
+}
+.empty .ghost{font-size:7cqh;color:var(--gold);margin-bottom:2cqh;}
+.empty p{font-size:2.2cqh;color:var(--sub);line-height:1.8;margin-bottom:3cqh;}
+.btn-primary{
+  border:none;border-radius:2cqh;padding:1.6cqh 4cqh;
+  font-size:2.4cqh;font-weight:600;color:#fff;
+  background:linear-gradient(135deg,var(--gold),var(--gold-d));
+  box-shadow:0 .8cqh 1.8cqh rgba(182,123,46,.3);
+}
+
+/* ===== 带回家弹层 ===== */
+.overlay{
+  position:fixed;inset:0;background:rgba(60,42,26,.42);
+  display:flex;align-items:center;justify-content:center;z-index:60;padding:18px;
+}
+.modal{
+  background:#FFFBF0;border:1.5px solid var(--line);border-radius:22px;
+  padding:20px;width:100%;max-width:430px;max-height:80vh;overflow:auto;
+  box-shadow:0 12px 40px rgba(0,0,0,.22);
+}
+.modal h3{font-size:18px;font-weight:700;margin-bottom:10px;color:var(--ink);}
+.modal p{font-size:14px;color:var(--sub);line-height:1.7;margin-bottom:12px;}
+.code-box{
+  background:#F5EEDF;border:1.5px solid var(--line);border-radius:12px;
+  padding:12px;font-size:12px;font-family:monospace;word-break:break-all;
+  max-height:120px;overflow:auto;margin-bottom:14px;color:var(--ink);
+}
+.modal .row{display:flex;gap:10px;}
+.modal button{flex:1;border:none;border-radius:12px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;}
+.btn-copy{background:linear-gradient(135deg,#C98A4B,#A9744E);color:#fff;}
+.btn-close{background:#F1E8D3;color:var(--ink);}
 </style>
 </head>
 <body>
@@ -136,39 +244,60 @@
 
     <!-- 有存档 -->
     <div id="main" hidden>
-      <div class="topbar">
-        <div class="brand"><span id="brand-name">我的工坊</span><span class="home">· 家</span></div>
-        <div class="top-right">
-          <span class="points-pill" id="points-pill">★ 0</span>
-          <button class="btn-takehome" id="btn-takehome">带回家</button>
-        </div>
+      <!-- 顶栏：伙伴圆头像 + 品牌名 + 积分药丸 -->
+      <div class="top-avatar"><img id="top-avatar-img" alt="伙伴头像"></div>
+      <div class="brand"><span id="brand-name">我的工坊</span><span class="home">· 家</span></div>
+      <span class="points-pill" id="points-pill">★ 0</span>
+
+      <!-- 页签：纯 CSS radio 切换（作品架/建议箱/成长档案/我的伙伴） -->
+      <input class="tab-r" type="radio" name="ws-tab" id="ws-tab-1" checked>
+      <input class="tab-r" type="radio" name="ws-tab" id="ws-tab-2">
+      <input class="tab-r" type="radio" name="ws-tab" id="ws-tab-3">
+      <input class="tab-r" type="radio" name="ws-tab" id="ws-tab-4">
+      <div class="tabbar">
+        <label for="ws-tab-1">作品架</label>
+        <label for="ws-tab-2">建议箱</label>
+        <label for="ws-tab-3">成长档案</label>
+        <label for="ws-tab-4">我的伙伴</label>
       </div>
 
-      <div class="partner">
-        <div class="bubble" id="bubble">
-          <span id="bubble-text">……</span>
-          <span class="hint">点我或点小伙伴，听 TA 说话</span>
-        </div>
-        <div class="partner-figure" id="partner-figure">
-          <img id="partner-img" alt="伙伴立绘">
-          <div class="name-tag"><span id="partner-name"></span><span class="rarity-dot" id="rarity-dot"></span><span id="rarity-text" style="font-size:12px;color:var(--sub)"></span></div>
-        </div>
-        <div class="crew" id="crew"></div>
+      <!-- 页签面板 -->
+      <div class="panels">
+        <section class="panel p-shelf">
+          <div class="shelf" id="shelf"></div>
+        </section>
+        <section class="panel p-inbox">
+          <div class="panel-title" id="inbox-title" hidden>💌 大家给我的建议</div>
+          <div class="inbox" id="inbox" hidden></div>
+          <div class="panel-hint">还没有收到建议。<br>把作品分享给朋友，听听大家怎么说～</div>
+        </section>
+        <section class="panel p-growth">
+          <div class="progress-wrap">
+            <div class="progress-head"><span>成长积分</span><b id="progress-num">0 / 240</b></div>
+            <div class="bar"><i id="progress-fill" style="width:0%"></i></div>
+          </div>
+          <div class="panel-title" id="growth-title" hidden>📈 我的成长档案</div>
+          <div class="inbox" id="growth" hidden></div>
+          <div class="panel-hint">还没有成长记录。<br>去制作台跟伙伴说说想法，脚印就会留下来～</div>
+        </section>
+        <section class="panel p-partner">
+          <div class="partner">
+            <div class="bubble" id="bubble">
+              <span id="bubble-text">……</span>
+              <span class="hint">点我或点小伙伴，听 TA 说话</span>
+            </div>
+            <div class="partner-figure" id="partner-figure">
+              <img id="partner-img" alt="伙伴立绘">
+              <div class="name-tag"><span id="partner-name"></span><span class="rarity-dot" id="rarity-dot"></span><span id="rarity-text"></span></div>
+            </div>
+            <div class="crew" id="crew"></div>
+          </div>
+        </section>
       </div>
 
-      <button class="btn-workbench" id="btn-workbench">🛠 想让游戏更好玩？去找伙伴帮忙！<small>跟 TA 说你的想法，TA 帮你把游戏改出来</small></button>
-
-      <div class="progress-wrap">
-        <div class="progress-head"><span>成长积分</span><b id="progress-num">0 / 2000</b></div>
-        <div class="bar"><i id="progress-fill" style="width:0%"></i></div>
-      </div>
-
-      <div class="shelf-title">我的作品架</div>
-      <div class="shelf" id="shelf"></div>
-      <div class="shelf-title" id="inbox-title" hidden>💌 大家给我的建议</div>
-      <div class="inbox" id="inbox" hidden></div>
-      <div class="shelf-title" id="growth-title" hidden>📈 我的成长档案</div>
-      <div class="inbox" id="growth" hidden></div>
+      <!-- 底部双胶囊入口 -->
+      <button class="entry-btn" id="btn-workbench">🛠 找伙伴创作<small>说想法，改游戏</small></button>
+      <button class="entry-btn" id="btn-takehome">🏠 带回家</button>
     </div>
 
     <!-- 带回家弹层 -->
@@ -292,16 +421,16 @@
     el('brand-name').textContent = owner + '的工坊';
     el('points-pill').textContent = '★ ' + (save.points || 0);
     el('partner-img').src = CLAIM_BASE + hero.img;
+    el('top-avatar-img').src = CLAIM_BASE + hero.img;
     el('partner-name').textContent = heroName;
     var wbBtn = el('btn-workbench');
     if (wbBtn) {
       wbBtn.textContent = '';
       var t1 = document.createElement('span');
-      t1.textContent = '🛠 想让游戏更好玩？去找「' + heroName + '」帮忙！';
+      t1.textContent = '🛠 找' + heroName + '创作';
       var t2 = document.createElement('small');
-      t2.textContent = '跟 TA 说你的想法，TA 帮你把游戏改出来';
+      t2.textContent = '说想法，改游戏';
       wbBtn.appendChild(t1);
-      wbBtn.appendChild(document.createElement('br'));
       wbBtn.appendChild(t2);
     }
     el('rarity-text').textContent = RARITY_CN[rarity] || rarity;

@@ -14,3 +14,9 @@ node_modules/
 CONTINUE.md
 tmpjs/
 *.py
+
+# 本地备份/临时
+*.bak*
+*.backup.*
+start-9000.bat
+

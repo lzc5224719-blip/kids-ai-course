@@ -1,149 +1,180 @@
-/* game_v1 - 星星大冒险 儿童糖果风 */
-:root {
-  --text: #3a3050;
-  --text-muted: #7a7290;
-  --primary: #7c5cff;
-  --primary-dark: #5537d6;
-  --primary-light: #efeaff;
-  --cta: #ff8a3d;
-  --cta-dark: #d15400;
-  --gold: #ffb400;
-  --bg: linear-gradient(160deg, #e8f4ff 0%, #f3eaff 55%, #ffeef7 100%);
-  --card: rgba(255,255,255,0.92);
-  --shadow-card: 0 8px 24px rgba(90,60,180,0.12);
-  --r-md: 16px;
-  --r-sm: 10px;
+/* 游戏页视觉重构 v1 —— 16:9 横版舞台 + 框架图底 + 透明画布覆盖
+   舞台：16:9 固定比例，居中，其他屏幕比例补 #F0DFC2
+   画布透明（game.js 只 clearRect），框架图的天空/地面直接成为游戏背景
+   HUD 由 game.js 画进框架三胶囊（坐标补丁见 _HUD补丁 注释）；右上圆圈 = 回工坊 */
+[hidden]{display:none!important;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#F0DFC2;
+  --card:#FFFBF2; --card-soft:#FBF3E2;
+  --ink:#5B4636; --sub:#9A866E; --line:#E7D9BE;
+  --brown:#A9744E; --brown-d:#8A5A3A;
+  --gold:#D9AE6A; --gold-d:#B67B2E;
+  --orange:#C76D32; --gray:#B8A98F;
+  --border-d:#6E4F2E;
 }
-[hidden] { display: none !important; }
+html,body{height:100%;}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  background:#42536b;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:-6%;z-index:0;
+  background:url('/assets/frames/frame-game.png') center / cover no-repeat;
+  filter:blur(30px) saturate(1.08) brightness(1.04);
+}
+button{cursor:pointer;font-family:inherit;}
+a{font-family:inherit;}
+button:focus-visible,a:focus-visible{outline:2px dashed var(--gold-d);outline-offset:2px;}
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  font-size: 16px;
+/* ===== 16:9 舞台 ===== */
+.stage{
+  width:min(100vw, calc(100vh * 9 / 16));
+  height:min(100vh, calc(100vw * 16 / 9));
+  position:relative;
+  z-index:1;
+  container-type:size;
+  overflow:hidden;
+  background:url('/assets/frames/frame-game.png') center / 100% 100% no-repeat;
+  box-shadow:0 0 48px rgba(20,32,48,.45);
 }
-.page { max-width: 860px; margin: 0 auto; padding: 16px; }
 
-/* 顶栏 */
-.topbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 4px 16px; }
-.logo { font-size: 22px; font-weight: 700; }
-.topbar-right { display: flex; align-items: center; gap: 12px; }
-.points-pill {
-  background: #fff3d6; border: 2px solid var(--gold); color: #8a5d00;
-  border-radius: 999px; padding: 6px 16px; font-weight: 700; font-size: 16px;
+/* ===== 画布：全舞台透明覆盖 ===== */
+#game-area{position:absolute;inset:0;}
+#cv{
+  position:absolute;inset:0;z-index:1;
+  width:100%;height:100%;display:block;
+  touch-action:none;
 }
-.btn-link { color: var(--text-muted); text-decoration: none; font-size: 14px; }
-.btn-link:hover { color: var(--primary); }
 
-/* 按钮 */
-.btn {
-  cursor: pointer; border: none; font-family: inherit;
-  border-radius: var(--r-md); font-weight: 600;
-  transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center;
-  gap: 6px; font-size: 16px; text-decoration: none;
+/* ===== 回工坊（盖框架图右上圆圈） ===== */
+.btn-home-game{
+  position:absolute;left:90.9%;top:1.5%;width:5.3%;height:3.66%;z-index:40;
+  display:flex;align-items:center;justify-content:center;text-decoration:none;
 }
-.btn-primary {
-  background: linear-gradient(180deg, #ffa04d, var(--cta));
-  color: #fff; padding: 12px 26px;
-  box-shadow: 0 5px 0 var(--cta-dark);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-}
-.btn-primary:hover { transform: translateY(-2px); }
-.btn-primary:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--cta-dark); }
-.btn-primary[disabled] { background: #d8d4e4; color: #9a95ad; box-shadow: 0 5px 0 #b8b4c8; cursor: not-allowed; transform: none; text-shadow: none; }
-.btn-secondary { background: #fff; color: var(--primary-dark); border: 2px solid #d9d0f5; padding: 10px 20px; }
-.btn-secondary:hover { background: var(--primary-light); }
-.btn-xl { font-size: 20px; padding: 16px 36px; border-radius: 20px; }
+.btn-home-game img{height:3.4cqh;width:auto;pointer-events:none;}
+.btn-home-game:active{transform:scale(.9);}
 
-/* 面板 */
-.panel {
-  background: var(--card); border-radius: var(--r-md);
-  box-shadow: var(--shadow-card); padding: 24px; margin-bottom: 16px;
+/* ===== 通用按钮 ===== */
+.btn{
+  cursor:pointer;border:none;font-family:inherit;border-radius:1.6cqh;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;gap:.8cqh;
+  font-size:1.9cqh;text-decoration:none;transition:transform .12s;
 }
-.panel h1 { font-size: 24px; margin-bottom: 10px; }
-.panel p { color: var(--text-muted); margin-bottom: 16px; }
-.row-center { display: flex; justify-content: center; margin: 12px 0; }
-.panel-title { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
-.panel-sub { font-size: 13px; font-weight: 400; color: var(--text-muted); margin-left: 8px; }
-.import-block { margin-top: 16px; font-size: 14px; color: var(--text-muted); }
-.import-block input { margin-top: 8px; }
-.import-fb { margin-top: 8px; font-weight: 600; }
-.import-fb.ok { color: #1D9E75; }
-.import-fb.err { color: #E24B4A; }
+.btn:active{transform:scale(.97);}
+.btn-primary{
+  background:linear-gradient(135deg,var(--gold),var(--gold-d));color:#fff;
+  box-shadow:0 .6cqh 1.4cqh rgba(182,123,46,.3);
+}
+.btn-primary[disabled]{background:#E4D8C2;color:#B4A88E;box-shadow:none;cursor:not-allowed;transform:none;}
+.btn-secondary{background:var(--card);color:var(--brown-d);border:1.5px solid var(--brown);}
+.btn-xl{padding:1.6cqh 3.4cqh;font-size:2.3cqh;border-radius:1.8cqh;}
+.btn-link{color:var(--sub);text-decoration:none;font-size:1.6cqh;font-weight:600;}
 
-/* 选英雄 */
-.hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-top: 14px; }
-.hero-cell {
-  background: #fff; border-radius: var(--r-sm); padding: 10px 6px;
-  text-align: center; cursor: pointer; border: 3px solid transparent;
-  transition: all 0.15s; box-shadow: 0 3px 10px rgba(90,60,180,0.08);
+/* ===== 无角色 / 选英雄：居中纸板 ===== */
+#no-hero,#hero-select{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:25;
+  width:56%;max-height:88%;overflow-y:auto;
+  background:var(--card);border:2px solid var(--border-d);border-radius:2.4cqh;
+  padding:2.8cqh 3.2cqh;text-align:center;
+  box-shadow:0 1.2cqh 3cqh rgba(60,42,26,.22);
 }
-.hero-cell:hover { border-color: var(--primary); transform: translateY(-3px); }
-.hero-cell img { width: 80px; height: 80px; object-fit: contain; }
-.hero-cell .h-name { font-weight: 700; font-size: 15px; margin-top: 6px; }
-.hero-cell .h-rar { font-size: 12px; font-weight: 700; }
-.rar-SSR { color: #d18f00; } .rar-SR { color: #8b5cf6; } .rar-R { color: #1D9E75; } .rar-N { color: #378ADD; }
+#no-hero h1,#hero-select h1{font-size:2.8cqh;color:var(--brown-d);margin-bottom:1cqh;}
+#no-hero p{font-size:1.9cqh;color:var(--sub);line-height:1.7;margin-bottom:1.8cqh;}
+.row-center{display:flex;justify-content:center;margin:1cqh 0;}
+.import-block{margin-top:1.8cqh;font-size:1.6cqh;color:var(--sub);}
+.import-block summary{cursor:pointer;}
+.import-block input{margin-top:.8cqh;font-size:1.5cqh;}
+.import-fb{margin-top:.8cqh;font-weight:700;font-size:1.6cqh;}
+.import-fb.ok{color:#5E9A6C;}
+.import-fb.err{color:#D9708E;}
+/* 选英雄网格（JS 动态生成 .hero-cell） */
+.hero-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(11cqw,1fr));gap:1.4cqh;margin-top:1.6cqh;}
+.hero-cell{
+  background:var(--card-soft);border:2px solid var(--line);border-radius:1.8cqh;
+  padding:1.2cqh .6cqh;text-align:center;cursor:pointer;transition:transform .12s,border-color .12s;
+}
+.hero-cell:hover{border-color:var(--orange);transform:translateY(-.4cqh);}
+.hero-cell img{width:8.5cqh;height:8.5cqh;object-fit:contain;}
+.hero-cell .h-name{font-weight:700;font-size:1.8cqh;margin-top:.6cqh;color:var(--ink);}
+.hero-cell .h-rar{font-size:1.4cqh;font-weight:700;}
+.rar-SSR{color:#B67B2E;}
+.rar-SR{color:#7F77DD;}
+.rar-R{color:#1D9E75;}
+.rar-N{color:#378ADD;}
 
-/* 游戏区 */
-.game-title {
-  text-align: center; font-size: 26px; font-weight: 800; margin-bottom: 12px;
-  background: linear-gradient(90deg, #7c5cff, #ff6b9d);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+/* ===== 遮罩：开始 / 结束 ===== */
+.game-mask{
+  position:absolute;inset:0;z-index:20;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:2cqh;
 }
-.game-wrap { position: relative; width: 480px; max-width: 100%; margin: 0 auto 16px; }
-#cv {
-  display: block; width: 100%; border-radius: var(--r-md);
-  box-shadow: var(--shadow-card); background: linear-gradient(180deg, #1b1040 0%, #341a6e 60%, #5b2d8e 100%);
-  touch-action: none;
+#mask-start{background:rgba(60,42,26,.32);}
+#mask-over{background:transparent;justify-content:center;}
+.mask-card{
+  background:var(--card);border:2px solid var(--border-d);border-radius:2.4cqh;
+  padding:2.2cqh 3.4cqh;text-align:center;max-width:52%;
+  box-shadow:0 1.2cqh 3cqh rgba(60,42,26,.26);
+  display:flex;flex-direction:column;align-items:center;gap:1cqh;
 }
-.game-mask {
-  position: absolute; inset: 0; border-radius: var(--r-md);
-  background: rgba(27,16,64,0.82);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; color: #fff; text-align: center; padding: 20px;
+#mask-over .mask-card{
+  padding:3cqh 3.4cqh;background:rgba(255,251,242,.84);max-width:78%;gap:1.3cqh;
 }
-.mask-hero img { width: 150px; height: 150px; object-fit: contain; filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5)); }
-.mask-rarity { font-size: 22px; font-weight: 800; letter-spacing: 2px; }
-.mask-tip { font-size: 14px; color: #d9cfff; max-width: 320px; line-height: 1.6; }
-.mask-help { font-size: 13px; color: #b3a8e0; }
-.over-title { font-size: 30px; font-weight: 800; }
-.over-score { font-size: 20px; }
-.over-score strong { color: var(--gold); font-size: 30px; }
-.over-best { font-size: 14px; color: #b3a8e0; }
+#mask-over .btn{width:100%;justify-content:center;}
+.logo{font-size:2cqh;font-weight:700;color:var(--sub);}
+.game-title{font-size:3cqh;font-weight:800;color:var(--brown-d);line-height:1.25;}
+.mask-hero img{
+  width:12cqh;height:12cqh;object-fit:contain;
+  filter:drop-shadow(0 .6cqh 1.4cqh rgba(110,79,46,.3));
+  animation:float 3s ease-in-out infinite;
+}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-.8cqh);}}
+.mask-rarity{font-size:2.2cqh;font-weight:800;letter-spacing:.2cqh;}
+.mask-tip{font-size:1.7cqh;color:var(--sub);max-width:34cqw;line-height:1.6;}
+.mask-meta{margin:.2cqh 0;}
+.pill-time{
+  display:inline-block;background:var(--card-soft);border:1.5px solid var(--line);
+  color:var(--gold-d);font-size:1.6cqh;font-weight:700;border-radius:999px;padding:.5cqh 1.6cqh;
+}
+.creator-quote{
+  margin:.4cqh 0;background:linear-gradient(135deg,#FFF3DD,#FBEED5);
+  border:1.5px dashed #E7D2A8;border-radius:1.6cqh;padding:1cqh 1.6cqh;text-align:left;max-width:34cqw;
+}
+.cq-name{font-size:1.4cqh;font-weight:700;color:var(--gold-d);margin-bottom:.2cqh;}
+.cq-text{font-size:1.7cqh;color:var(--ink);line-height:1.55;word-break:break-word;}
+.mask-help{font-size:1.5cqh;color:var(--sub);}
+.mask-wb-link{font-size:1.6cqh;color:var(--brown);text-decoration:underline;}
+/* 结束遮罩内容 */
+.over-title{font-size:3.2cqh;font-weight:800;color:var(--brown-d);}
+.over-score{font-size:2.1cqh;color:var(--ink);}
+.over-score strong{color:var(--orange);font-size:3cqh;}
+.over-best{font-size:1.6cqh;color:var(--sub);}
 
-/* 商店 */
-.shop-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-.shop-item {
-  background: #fff; border-radius: var(--r-sm); padding: 14px 10px;
-  text-align: center; border: 2px solid #efe9fb;
+/* ===== 建议面板（分享玩家玩完后，底部贴纸卡） ===== */
+.suggest-panel{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:2.5%;z-index:30;
+  width:58%;max-height:56%;overflow-y:auto;
+  background:var(--card);border:2px solid var(--border-d);border-radius:2cqh;
+  padding:1.5cqh 2cqh;box-shadow:0 1cqh 2.6cqh rgba(60,42,26,.28);
+  scrollbar-width:thin;scrollbar-color:#D9C6A0 transparent;
 }
-.shop-item .s-icon { font-size: 30px; }
-.shop-item .s-name { font-weight: 700; font-size: 15px; margin: 6px 0 2px; }
-.shop-item .s-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; min-height: 30px; }
-.shop-item .s-cost {
-  background: #fff3d6; color: #8a5d00; border: none; border-radius: 999px;
-  padding: 7px 14px; font-weight: 700; cursor: pointer; font-size: 14px;
+.suggest-panel .panel-title{font-size:2cqh;font-weight:700;color:var(--brown-d);margin-bottom:.8cqh;}
+.suggest-sub{font-size:1.55cqh;color:var(--sub);line-height:1.6;margin-bottom:1cqh;}
+.suggest-chips{display:flex;flex-wrap:wrap;gap:.8cqh;margin-bottom:.9cqh;}
+.suggest-chips .chip{
+  border:1.5px solid var(--line);background:#fff;color:var(--brown-d);
+  font-size:1.5cqh;font-weight:600;border-radius:999px;padding:.5cqh 1.3cqh;
+  cursor:pointer;font-family:inherit;transition:transform .1s;
 }
-.shop-item .s-cost:hover { background: #ffe9b8; }
-.shop-item .s-cost[disabled] { background: #eee; color: #aaa; cursor: not-allowed; }
-.shop-item.owned-item { border-color: var(--gold); background: #fffaf0; }
-.shop-item .s-owned-tag { color: #1D9E75; font-weight: 700; font-size: 14px; }
-
-/* 咒语 */
-.spell-input-row { display: flex; gap: 10px; }
-.spell-input-row input {
-  flex: 1; border: 2px solid #e4dff2; border-radius: var(--r-md);
-  padding: 12px 16px; font-size: 16px; font-family: inherit; outline: none;
+.suggest-chips .chip:active{transform:scale(.95);}
+#suggest-text{
+  width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:1.2cqh;
+  padding:.9cqh 1.2cqh;font-size:1.7cqh;font-family:inherit;resize:none;margin-bottom:.9cqh;
+  background:#fff;color:var(--ink);
 }
-.spell-input-row input:focus { border-color: var(--primary); }
-.spell-fb { min-height: 26px; margin-top: 10px; font-weight: 700; font-size: 16px; }
-.spell-fb.ok { color: #1D9E75; }
-.spell-fb.err { color: #E24B4A; }
-.spell-hint { margin-top: 8px; font-size: 13px; color: var(--text-muted); line-height: 1.7; }
-
-@media (max-width: 560px) {
-  .game-wrap { width: 100%; }
-  .panel { padding: 18px; }
-}
+#suggest-text:focus{border-color:var(--orange);outline:none;}
+.suggest-fb{font-size:1.5cqh;margin-top:.7cqh;min-height:1.8cqh;color:var(--brown-d);font-weight:600;}
+.suggest-panel .btn-link{display:block;text-align:center;margin-top:.8cqh;}
