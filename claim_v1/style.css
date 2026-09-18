@@ -375,3 +375,23 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px dash
 .milestone-title{font-size:2.4cqh;font-weight:700;margin-bottom:.8cqh;color:var(--ink);}
 .milestone-label{font-size:1.9cqh;color:var(--sub);margin-bottom:2cqh;}
 .milestone-card .btn{padding:1.2cqh 3.4cqh;}
+
+/* ===== 竖屏重构：去掉旧扭蛋蛋（新框架图里已有机器和蛋）===== */
+.gm-dome, .gm-capsule{display:none!important;}
+.view-gacha.shake{animation:gachaShake .32s ease-in-out infinite;}
+@keyframes gachaShake{
+  0%,100%{transform:translate(0,0) rotate(0);}
+  25%{transform:translate(.4cqh,-.3cqh) rotate(-1.1deg);}
+  75%{transform:translate(-.4cqh,.3cqh) rotate(1.1deg);}
+}
+/* ===== 档案页：清晰下一步 + 收起高级项 ===== */
+.archive-cta{display:flex;flex-direction:column;gap:1cqh;align-items:center;margin-bottom:2cqh;}
+.archive-cta .btn-xl{width:100%;}
+.more-box{
+  background:var(--card);border:2px solid var(--border-d);border-radius:1.8cqh;
+  padding:1.2cqh 1.6cqh;margin-bottom:1.8cqh;
+}
+.more-box summary{cursor:pointer;font-size:1.7cqh;font-weight:700;color:var(--sub);text-align:center;padding:.4cqh;list-style:none;}
+.more-box summary::-webkit-details-marker{display:none;}
+.more-box-body{display:flex;flex-direction:column;gap:.9cqh;margin-top:1.2cqh;align-items:center;}
+.more-box-body .btn{width:100%;}

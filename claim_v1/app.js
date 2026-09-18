@@ -240,7 +240,7 @@
     gachaAnimating = true;
     document.getElementById('btn-double').hidden = true;
     const knob = document.getElementById('btn-knob');
-    const dome = document.getElementById('gm-dome');
+    const stage = document.querySelector('.view-gacha');
     const capsule = document.getElementById('gm-capsule');
     const hint = document.getElementById('gacha-hint');
     const area = document.getElementById('gacha-result-area');
@@ -250,13 +250,13 @@
 
     knob.disabled = true;
     knob.classList.add('spin');
-    dome.classList.add('shake');
+    stage.classList.add('shake');
     Sound.crank();
     Sound.shake();
     hint.textContent = '摇一摇...';
 
     setTimeout(() => {
-      dome.classList.remove('shake');
+      stage.classList.remove('shake');
       knob.classList.remove('spin');
       // 蛋掉进窗口
       capsule.hidden = false;
@@ -935,6 +935,9 @@
     document.getElementById('btn-export-pack').addEventListener('click', exportHeroPack);
     document.getElementById('btn-again').addEventListener('click', () => {
       document.getElementById('btn-go-gacha').click();
+    });
+    document.getElementById('btn-go-workbench').addEventListener('click', () => {
+      location.href = '/workbench_v1/';
     });
     document.getElementById('btn-redeem').addEventListener('click', redeemCode);
     document.getElementById('input-code').addEventListener('keydown', (e) => {

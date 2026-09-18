@@ -131,14 +131,28 @@
         <canvas id="canvas-archive" width="750" height="1000"></canvas>
       </div>
 
-      <!-- 称号（1000 分解锁） -->
-      <div class="title-block" id="title-block" hidden>
-        <div class="title-block-label">★ 称号已解锁，选一个：</div>
-        <div class="chip-row" id="row-titles"></div>
+      <div class="archive-cta">
+        <button class="btn btn-primary btn-xl" id="btn-go-workbench">🎮 去工作台开始创作 →</button>
+        <button class="btn btn-secondary btn-m" id="btn-again">🔁 再抽一次</button>
       </div>
 
-      <!-- 积分系统 -->
-      <div class="points-block">
+      <div class="owned-list">
+        <h3>我的英雄小队 <span id="owned-count">0</span></h3>
+        <div class="owned-grid" id="owned-grid"></div>
+      </div>
+
+      <details class="more-box">
+        <summary>更多 · 存档 / 下载 / 导出</summary>
+        <div class="more-box-body">
+          <button class="btn btn-secondary btn-m" id="btn-savecode">🔑 我的存档码</button>
+          <button class="btn btn-secondary btn-m" id="btn-download-card">📸 下载档案卡</button>
+          <button class="btn btn-secondary btn-m" id="btn-export-pack">📦 导出英雄包</button>
+          <button class="btn btn-link" id="btn-reset">→ 下一位小朋友</button>
+        </div>
+      </details>
+
+      <!-- 积分系统（先收起，后续移到工作台展示） -->
+      <div class="points-block" hidden>
         <div class="points-bar-wrap">
           <div class="points-track">
             <div class="points-fill" id="points-fill"></div>
@@ -163,23 +177,16 @@
         <div class="points-badges" id="points-badges"></div>
       </div>
 
-      <div class="archive-actions">
-        <button class="btn btn-primary btn-xl" id="btn-download-card">📸 下载档案卡</button>
-        <button class="btn btn-secondary btn-m" id="btn-export-pack">📦 导出英雄包</button>
-        <button class="btn btn-secondary btn-m" id="btn-again">再抽一次</button>
-        <button class="btn btn-secondary btn-m" id="btn-savecode">🔑 我的存档码</button>
-        <button class="btn btn-link" id="btn-reset">→ 下一位小朋友</button>
+      <!-- 称号（1000 分解锁） -->
+      <div class="title-block" id="title-block" hidden>
+        <div class="title-block-label">★ 称号已解锁，选一个：</div>
+        <div class="chip-row" id="row-titles"></div>
       </div>
 
       <div class="savecode-panel" id="savecode-panel" hidden>
         <p class="savecode-tip">把这段码复制保存好（可以发到微信收藏），换电脑也能找回你的英雄：</p>
         <textarea id="output-savecode" rows="3" readonly></textarea>
         <button class="btn btn-secondary" id="btn-copy-code">复制存档码</button>
-      </div>
-
-      <div class="owned-list">
-        <h3>我的英雄小队 <span id="owned-count">0</span></h3>
-        <div class="owned-grid" id="owned-grid"></div>
       </div>
     </section>
 
